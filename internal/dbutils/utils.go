@@ -9,7 +9,7 @@ import (
 )
 
 func ToNullString(s *string) sql.NullString {
-	if s == nil {
+	if s == nil || *s == "" {
 		return sql.NullString{Valid: false}
 	}
 	return sql.NullString{String: *s, Valid: true}

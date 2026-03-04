@@ -11,34 +11,38 @@ import (
 	"github.com/hugermuger/battlesphere/internal/scryfall"
 )
 
-func (cfg *apiConfig) handler_initialMigration() error {
+func (cfg *apiConfig) handlerInitialMigration() error {
 	_, err := cfg.db.GetSyncState(context.Background(), "rulings")
 	if err == sql.ErrNoRows {
-		err = cfg.handler_bulkImportRulings()
-		if err != nil {
-			return fmt.Errorf("Error bulk importing rulings: %v", err)
-		}
+		fmt.Println("Ruling Bulk Data does not exists! Start migration...")
 	} else if err != nil {
 		return err
 	} else {
-		fmt.Println("Ruling Bulk Data exists!")
+		fmt.Println("Ruling Bulk Data exists! Start update...")
 	}
+	err = cfg.handlerBulkImportRulings()
+	if err != nil {
+		return fmt.Errorf("Error bulk importing rulings: %v", err)
+	}
+
 	_, err = cfg.db.GetSyncState(context.Background(), "all_cards")
 	if err == sql.ErrNoRows {
-		err = cfg.handler_bulkImportCards()
-		if err != nil {
-			return fmt.Errorf("Error bulk importing cards: %v", err)
-		}
+		fmt.Println("Card Bulk Data does not exists! Start migration...")
 	} else if err != nil {
 		return err
 	} else {
 		fmt.Println("Card Bulk Data exists!")
 	}
 
+	err = cfg.handlerBulkImportCards()
+	if err != nil {
+		return fmt.Errorf("Error bulk importing cards: %v", err)
+	}
+
 	return nil
 }
 
-func (cfg *apiConfig) handler_bulkImportCards() error {
+func (cfg *apiConfig) handlerBulkImportCards() error {
 	const batchSize = 500
 
 	url, err := scryfall.GetBulkURL(cfg.bulkURL, "all_cards")
@@ -84,7 +88,7 @@ func (cfg *apiConfig) handler_bulkImportCards() error {
 		batch = append(batch, card)
 
 		if len(batch) >= batchSize {
-			err = cfg.handler_batchImportCards(batch)
+			err = cfg.handlerBatchImportCards(batch)
 			if err != nil {
 				return err
 			}
@@ -100,7 +104,7 @@ func (cfg *apiConfig) handler_bulkImportCards() error {
 	}
 
 	if len(batch) > 0 {
-		err = cfg.handler_batchImportCards(batch)
+		err = cfg.handlerBatchImportCards(batch)
 		if err != nil {
 			return err
 		}
@@ -116,7 +120,7 @@ func (cfg *apiConfig) handler_bulkImportCards() error {
 	return nil
 }
 
-func (cfg *apiConfig) handler_batchImportCards(cards []scryfall.CardJSON) error {
+func (cfg *apiConfig) handlerBatchImportCards(cards []scryfall.CardJSON) error {
 	tx, err := cfg.dbConn.Begin()
 	if err != nil {
 		return err
@@ -135,7 +139,7 @@ func (cfg *apiConfig) handler_batchImportCards(cards []scryfall.CardJSON) error 
 	return tx.Commit()
 }
 
-func (cfg *apiConfig) handler_bulkImportRulings() error {
+func (cfg *apiConfig) handlerBulkImportRulings() error {
 	const batchSize = 500
 
 	url, err := scryfall.GetBulkURL(cfg.bulkURL, "rulings")
@@ -181,7 +185,7 @@ func (cfg *apiConfig) handler_bulkImportRulings() error {
 		batch = append(batch, rule)
 
 		if len(batch) >= batchSize {
-			err = cfg.handler_batchImportRulings(batch)
+			err = cfg.handlerBatchImportRulings(batch)
 			if err != nil {
 				return err
 			}
@@ -197,7 +201,7 @@ func (cfg *apiConfig) handler_bulkImportRulings() error {
 	}
 
 	if len(batch) > 0 {
-		err = cfg.handler_batchImportRulings(batch)
+		err = cfg.handlerBatchImportRulings(batch)
 		if err != nil {
 			return err
 		}
@@ -213,7 +217,7 @@ func (cfg *apiConfig) handler_bulkImportRulings() error {
 	return nil
 }
 
-func (cfg *apiConfig) handler_batchImportRulings(rules []scryfall.Rulings) error {
+func (cfg *apiConfig) handlerBatchImportRulings(rules []scryfall.Rulings) error {
 	tx, err := cfg.dbConn.Begin()
 	if err != nil {
 		return err

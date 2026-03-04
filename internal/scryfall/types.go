@@ -121,3 +121,10 @@ type URLS struct {
 		DownloadURI string    `json:"download_uri"`
 	} `json:"data"`
 }
+
+type CardResponseList struct {
+	Name    string `json:"name"`
+	SetName string `json:"set_name"`
+	SetCode string `json:"set_code"`
+	Rarity  string `json:"rarity"`
+}

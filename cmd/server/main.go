@@ -2,24 +2,26 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
 	"os"
 
+	"github.com/gin-gonic/gin"
 	"github.com/hugermuger/battlesphere/internal/database"
 	"github.com/joho/godotenv"
-	_ "github.com/lib/pq"
 )
 
 type apiConfig struct {
-	db      *database.Queries
-	dbConn  *sql.DB
-	bulkURL string
+	db        *database.Queries
+	dbConn    *sql.DB
+	platform  string
+	jwtSecret string
+	polkaKey  string
 }
 
 func main() {
+	const port = "8080"
+
 	godotenv.Load()
-	bulkURL := os.Getenv("BULK_URL")
 	dbURL := os.Getenv("DB_URL")
 	if dbURL == "" {
 		log.Fatal("DB_URL must be set")
@@ -31,13 +33,14 @@ func main() {
 	dbQueries := database.New(dbConn)
 
 	cfg := apiConfig{
-		db:      dbQueries,
-		dbConn:  dbConn,
-		bulkURL: bulkURL,
+		db:     dbQueries,
+		dbConn: dbConn,
 	}
 
-	err = cfg.handlerInitialMigration()
-	if err != nil {
-		fmt.Println(err)
-	}
+	router := gin.Default()
+
+	router.Use(handlerError())
+
+	router.GET("/cards/search", cfg.handlerSearchCards)
+	router.Run(":" + port)
 }
