@@ -14,10 +14,21 @@ import (
 	"github.com/lib/pq"
 )
 
+const getSyncState = `-- name: GetSyncState :one
+SELECT last_sync FROM sync_state WHERE key = $1
+`
+
+func (q *Queries) GetSyncState(ctx context.Context, key string) (time.Time, error) {
+	row := q.db.QueryRowContext(ctx, getSyncState, key)
+	var last_sync time.Time
+	err := row.Scan(&last_sync)
+	return last_sync, err
+}
+
 const insertCard = `-- name: InsertCard :exec
 INSERT INTO cards (
     id, arena_id, mtgo_id, cardmarket_id, oracle_id, release_date,
-    lang, layout, ruling_uri, edhrec_rank, game_changer, multifaced,
+    lang, layout, edhrec_rank, game_changer, multifaced,
     cmc, color_identity, colors, defense, keywords, loyalty,
     mana_cost, name, oracle_text, power, toughness, type_line,
     artist, collector_number, finishes, flavor_name, flavor_text,
@@ -35,7 +46,7 @@ INSERT INTO cards (
     $29, $30, $31, $32,
     $33, $34, $35, $36,
     $37, $38, $39,
-    $40, $41, $42, $43, $44, $45, $46,
+    $40, $41, $42, $43, $44, $45,
     NOW(), NOW()
 )
 ON CONFLICT (id) DO UPDATE SET
@@ -46,7 +57,6 @@ ON CONFLICT (id) DO UPDATE SET
     release_date = EXCLUDED.release_date,
     lang = EXCLUDED.lang,
     layout = EXCLUDED.layout,
-    ruling_uri = EXCLUDED.ruling_uri,
     edhrec_rank = EXCLUDED.edhrec_rank,
     game_changer = EXCLUDED.game_changer,
     multifaced = EXCLUDED.multifaced,
@@ -96,7 +106,6 @@ type InsertCardParams struct {
 	ReleaseDate     time.Time
 	Lang            string
 	Layout          string
-	RulingUri       string
 	EdhrecRank      sql.NullInt32
 	GameChanger     sql.NullBool
 	Multifaced      bool
@@ -146,7 +155,6 @@ func (q *Queries) InsertCard(ctx context.Context, arg InsertCardParams) error {
 		arg.ReleaseDate,
 		arg.Lang,
 		arg.Layout,
-		arg.RulingUri,
 		arg.EdhrecRank,
 		arg.GameChanger,
 		arg.Multifaced,
@@ -286,7 +294,7 @@ func (q *Queries) InsertCardFace(ctx context.Context, arg InsertCardFaceParams) 
 
 const insertLegality = `-- name: InsertLegality :exec
 INSERT INTO legalities (
-    id, standard, pauper, vintage, pioneer, modern, legacy, commander, future,
+    card_id, standard, pauper, vintage, pioneer, modern, legacy, commander, future,
 	historic, timeless, gladiator, penny, oathbreaker,
 	standardbrawl, brawl, alchemy, paupercommander, duel,
 	oldschool, premodern, predh, created_at, updated_at
@@ -294,7 +302,7 @@ INSERT INTO legalities (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
     $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, Now(), Now()
 )
-ON CONFLICT (id) DO UPDATE SET
+ON CONFLICT (card_id) DO UPDATE SET
     standard = EXCLUDED.standard,
     pauper = EXCLUDED.pauper,
     vintage = EXCLUDED.vintage,
@@ -320,7 +328,7 @@ ON CONFLICT (id) DO UPDATE SET
 `
 
 type InsertLegalityParams struct {
-	ID              uuid.UUID
+	CardID          uuid.UUID
 	Standard        sql.NullString
 	Pauper          sql.NullString
 	Vintage         sql.NullString
@@ -346,7 +354,7 @@ type InsertLegalityParams struct {
 
 func (q *Queries) InsertLegality(ctx context.Context, arg InsertLegalityParams) error {
 	_, err := q.db.ExecContext(ctx, insertLegality,
-		arg.ID,
+		arg.CardID,
 		arg.Standard,
 		arg.Pauper,
 		arg.Vintage,
@@ -369,5 +377,46 @@ func (q *Queries) InsertLegality(ctx context.Context, arg InsertLegalityParams) 
 		arg.Premodern,
 		arg.Predh,
 	)
+	return err
+}
+
+const insertRulings = `-- name: InsertRulings :exec
+INSERT INTO rulings (
+    oracle_id, source, published_at, comment, created_at, updated_at
+) VALUES (
+    $1, $2, $3, $4, Now(), Now()
+)
+ON CONFLICT (oracle_id, published_at, comment) DO NOTHING
+`
+
+type InsertRulingsParams struct {
+	OracleID    uuid.UUID
+	Source      sql.NullString
+	PublishedAt time.Time
+	Comment     string
+}
+
+func (q *Queries) InsertRulings(ctx context.Context, arg InsertRulingsParams) error {
+	_, err := q.db.ExecContext(ctx, insertRulings,
+		arg.OracleID,
+		arg.Source,
+		arg.PublishedAt,
+		arg.Comment,
+	)
+	return err
+}
+
+const insertSyncState = `-- name: InsertSyncState :exec
+INSERT INTO sync_state (
+key, last_sync
+) VALUES (
+    $1, Now()
+)
+ON CONFLICT (key) DO UPDATE SET
+    last_sync = Now()
+`
+
+func (q *Queries) InsertSyncState(ctx context.Context, key string) error {
+	_, err := q.db.ExecContext(ctx, insertSyncState, key)
 	return err
 }

@@ -20,7 +20,6 @@ type Card struct {
 	ReleaseDate     time.Time
 	Lang            string
 	Layout          string
-	RulingUri       string
 	EdhrecRank      sql.NullInt32
 	GameChanger     sql.NullBool
 	Multifaced      bool
@@ -91,7 +90,7 @@ type CardFace struct {
 }
 
 type Legality struct {
-	ID              uuid.UUID
+	CardID          uuid.UUID
 	Standard        sql.NullString
 	Pauper          sql.NullString
 	Vintage         sql.NullString
@@ -115,4 +114,18 @@ type Legality struct {
 	Predh           sql.NullString
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
+}
+
+type Ruling struct {
+	OracleID    uuid.UUID
+	Source      sql.NullString
+	PublishedAt time.Time
+	Comment     string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+type SyncState struct {
+	Key      string
+	LastSync time.Time
 }

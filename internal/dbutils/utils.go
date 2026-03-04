@@ -6,7 +6,6 @@ import (
 	"strconv"
 
 	"github.com/google/uuid"
-	"github.com/hugermuger/battlesphere/internal/scryfall"
 )
 
 func ToNullString(s *string) sql.NullString {
@@ -61,26 +60,6 @@ func StringToNullFloat64(s *string) (sql.NullFloat64, error) {
 		return sql.NullFloat64{Valid: false}, err
 	}
 	return sql.NullFloat64{Float64: f, Valid: true}, nil
-}
-
-func ToNullImage(images *scryfall.ImageUris, size string) sql.NullString {
-	if images == nil {
-		return sql.NullString{Valid: false}
-	}
-	switch size {
-	case "normal":
-		return ToNullString(images.Normal)
-	case "png":
-		return ToNullString(images.Png)
-	case "large":
-		return ToNullString(images.Large)
-	case "crop":
-		return ToNullString(images.ArtCrop)
-	case "small":
-		return ToNullString(images.Small)
-	default:
-		return sql.NullString{Valid: false}
-	}
 }
 
 func SafeSlice(s *[]string) []string {

@@ -9,7 +9,6 @@ CREATE TABLE cards (
 
     lang              TEXT NOT NULL,
     layout            TEXT NOT NULL,
-    ruling_uri        TEXT NOT NULL,
     edhrec_rank       INTEGER,
     game_changer      BOOLEAN,
     multifaced        BOOLEAN NOT NULL,
@@ -86,7 +85,7 @@ CREATE TABLE card_faces (
 );
 
 CREATE TABLE legalities (
-    id                UUID PRIMARY KEY REFERENCES cards(id) ON DELETE CASCADE,
+    card_id           UUID PRIMARY KEY REFERENCES cards(id) ON DELETE CASCADE,
     standard          TEXT,
     pauper            TEXT,
     vintage           TEXT,
@@ -112,7 +111,25 @@ CREATE TABLE legalities (
     updated_at        TIMESTAMP NOT NULL
 );
 
+CREATE TABLE rulings (
+    oracle_id         UUID NOT NULL,
+    source            TEXT,
+    published_at      DATE NOT NULL,
+    comment           TEXT NOT NULL,
+    created_at        TIMESTAMP NOT NULL,
+    updated_at        TIMESTAMP NOT NULL,
+
+    PRIMARY KEY (oracle_id, published_at, comment)
+);
+
+CREATE TABLE sync_state (
+    key               TEXT PRIMARY KEY,
+    last_sync         TIMESTAMP NOT NULL
+);
+
 -- +goose Down
 DROP TABLE card_faces;
 DROP TABLE legalities;
 DROP TABLE cards;
+DROP TABLE rulings;
+DROP TABLE sync_state;

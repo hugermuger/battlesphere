@@ -8,7 +8,6 @@ import (
 	"sync/atomic"
 
 	"github.com/hugermuger/battlesphere/internal/database"
-	"github.com/hugermuger/battlesphere/internal/scryfall"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 )
@@ -20,10 +19,12 @@ type apiConfig struct {
 	platform       string
 	jwtSecret      string
 	polkaKey       string
+	bulkURL        string
 }
 
 func main() {
 	godotenv.Load()
+	bulkURL := os.Getenv("BULK_URL")
 	dbURL := os.Getenv("DB_URL")
 	if dbURL == "" {
 		log.Fatal("DB_URL must be set")
@@ -35,16 +36,12 @@ func main() {
 	dbQueries := database.New(dbConn)
 
 	apiCfg := apiConfig{
-		db:     dbQueries,
-		dbConn: dbConn,
+		db:      dbQueries,
+		dbConn:  dbConn,
+		bulkURL: bulkURL,
 	}
 
-	card, err := scryfall.ImportSingleCard("https://api.scryfall.com/cards/named?exact=invasion-of-zendikar")
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	err = apiCfg.handler_importSingleCardToDB(card)
+	err = apiCfg.handler_initialMigration()
 	if err != nil {
 		fmt.Println(err)
 	}
