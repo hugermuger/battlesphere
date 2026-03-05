@@ -1,4 +1,4 @@
-package scryfall
+package types
 
 import (
 	"time"
@@ -122,9 +122,52 @@ type URLS struct {
 	} `json:"data"`
 }
 
-type CardResponseList struct {
-	Name    string `json:"name"`
-	SetName string `json:"set_name"`
-	SetCode string `json:"set_code"`
-	Rarity  string `json:"rarity"`
+type CardResponseSearchByName struct {
+	OracleID *uuid.UUID `json:"oracle_id"`
+	Name     string     `json:"name"`
+	Layout   string     `json:"layout"`
+	ManaCost *string    `json:"mana_cost"`
+	TypeLine string     `json:"type_line"`
+}
+
+type CardResponseSearchByOracleID struct {
+	ID              uuid.UUID `json:"id"`
+	Name            string    `json:"name"`
+	FlavorName      *string   `json:"flavor_name"`
+	ReleasedAt      time.Time `json:"released_at"`
+	Set             string    `json:"set"`
+	SetName         string    `json:"set_name"`
+	CollectorNumber string    `json:"collector_number"`
+}
+
+type ResponseByOracleID struct {
+	Name       string                       `json:"name"`
+	Layout     string                       `json:"layout"`
+	ManaCost   *string                      `json:"mana_cost"`
+	TypeLine   string                       `json:"type_line"`
+	OracleText *string                      `json:"oracle_text"`
+	Power      *string                      `json:"power"`
+	Toughness  *string                      `json:"toughness"`
+	Loyalty    *string                      `json:"loyalty"`
+	Defense    *string                      `json:"defense"`
+	CardFaces  *[]SingleCardFacesByOracleID `json:"card_faces"`
+	Multifaced bool                         `json:"multifaced"`
+}
+
+type SingleCardFacesByOracleID struct {
+	Name       string  `json:"name"`
+	ManaCost   string  `json:"mana_cost"`
+	TypeLine   *string `json:"type_line"`
+	OracleText *string `json:"oracle_text"`
+	Power      *string `json:"power"`
+	Toughness  *string `json:"toughness"`
+	Loyalty    *string `json:"loyalty"`
+	Defense    *string `json:"defense"`
+}
+
+type ResponseRulings struct {
+	OracleID    uuid.UUID `json:"oracle_id"`
+	Source      *string   `json:"source"`
+	PublishedAt time.Time `json:"published_at"`
+	Comment     string    `json:"comment"`
 }

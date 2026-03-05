@@ -9,6 +9,7 @@ import (
 	"net/http"
 
 	"github.com/hugermuger/battlesphere/internal/scryfall"
+	"github.com/hugermuger/battlesphere/internal/types"
 )
 
 func (cfg *apiConfig) handlerInitialMigration() error {
@@ -74,11 +75,11 @@ func (cfg *apiConfig) handlerBulkImportCards() error {
 		return err
 	}
 
-	var batch []scryfall.CardJSON
+	var batch []types.CardJSON
 	count := 0
 
 	for decoder.More() {
-		var card scryfall.CardJSON
+		var card types.CardJSON
 		err := decoder.Decode(&card)
 		if err != nil {
 			log.Printf("Decode error: %v", err)
@@ -94,7 +95,7 @@ func (cfg *apiConfig) handlerBulkImportCards() error {
 			}
 			count += len(batch)
 			log.Printf("Imported %v cards...", count)
-			batch = make([]scryfall.CardJSON, 0, batchSize)
+			batch = make([]types.CardJSON, 0, batchSize)
 		}
 	}
 
@@ -120,7 +121,7 @@ func (cfg *apiConfig) handlerBulkImportCards() error {
 	return nil
 }
 
-func (cfg *apiConfig) handlerBatchImportCards(cards []scryfall.CardJSON) error {
+func (cfg *apiConfig) handlerBatchImportCards(cards []types.CardJSON) error {
 	tx, err := cfg.dbConn.Begin()
 	if err != nil {
 		return err
@@ -171,11 +172,11 @@ func (cfg *apiConfig) handlerBulkImportRulings() error {
 		return err
 	}
 
-	var batch []scryfall.Rulings
+	var batch []types.Rulings
 	count := 0
 
 	for decoder.More() {
-		var rule scryfall.Rulings
+		var rule types.Rulings
 		err := decoder.Decode(&rule)
 		if err != nil {
 			log.Printf("Decode error: %v", err)
@@ -191,7 +192,7 @@ func (cfg *apiConfig) handlerBulkImportRulings() error {
 			}
 			count += len(batch)
 			log.Printf("Imported %v rules...", count)
-			batch = make([]scryfall.Rulings, 0, batchSize)
+			batch = make([]types.Rulings, 0, batchSize)
 		}
 	}
 
@@ -217,7 +218,7 @@ func (cfg *apiConfig) handlerBulkImportRulings() error {
 	return nil
 }
 
-func (cfg *apiConfig) handlerBatchImportRulings(rules []scryfall.Rulings) error {
+func (cfg *apiConfig) handlerBatchImportRulings(rules []types.Rulings) error {
 	tx, err := cfg.dbConn.Begin()
 	if err != nil {
 		return err

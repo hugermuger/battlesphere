@@ -11,9 +11,10 @@ import (
 
 	"github.com/hugermuger/battlesphere/internal/database"
 	"github.com/hugermuger/battlesphere/internal/dbutils"
+	"github.com/hugermuger/battlesphere/internal/types"
 )
 
-func SingleCardImport(ctx context.Context, qtx *database.Queries, card CardJSON) error {
+func SingleCardImport(ctx context.Context, qtx *database.Queries, card types.CardJSON) error {
 	layout := "2006-01-02"
 	relaseDate, err := time.Parse(layout, card.ReleasedAt)
 	if err != nil {
@@ -167,7 +168,7 @@ func SingleCardImport(ctx context.Context, qtx *database.Queries, card CardJSON)
 	return nil
 }
 
-func SingleRuleImport(ctx context.Context, qtx *database.Queries, rule Rulings) error {
+func SingleRuleImport(ctx context.Context, qtx *database.Queries, rule types.Rulings) error {
 	layout := "2006-01-02"
 	publishedAt, err := time.Parse(layout, rule.PublishedAt)
 	if err != nil {
@@ -214,7 +215,7 @@ func GetBulkURL(url, bulktype string) (string, error) {
 		return "", err
 	}
 
-	var urls URLS
+	var urls types.URLS
 	err = json.Unmarshal(body, &urls)
 	if err != nil {
 		return "", err
@@ -229,7 +230,7 @@ func GetBulkURL(url, bulktype string) (string, error) {
 	return "", fmt.Errorf("Bulk Type not supoorted")
 }
 
-func toNullImage(images *ImageUris, size string) sql.NullString {
+func toNullImage(images *types.ImageUris, size string) sql.NullString {
 	if images == nil {
 		return sql.NullString{Valid: false}
 	}

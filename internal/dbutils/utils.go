@@ -43,6 +43,14 @@ func ToNullUUID(u *uuid.UUID) uuid.NullUUID {
 	return uuid.NullUUID{UUID: *u, Valid: true}
 }
 
+func ToUUIDPtr(nullID uuid.NullUUID) *uuid.UUID {
+	if !nullID.Valid {
+		return nil
+	}
+	id := nullID.UUID
+	return &id
+}
+
 func ToNullBool(b *bool) sql.NullBool {
 	if b == nil {
 		return sql.NullBool{Valid: false}

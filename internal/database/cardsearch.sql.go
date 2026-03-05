@@ -8,11 +8,17 @@ package database
 import (
 	"context"
 	"database/sql"
+	"time"
+
+	"github.com/google/uuid"
 )
 
 const countCardsByNameList = `-- name: CountCardsByNameList :one
-SELECT COUNT(*)  FROM cards
-WHERE printed_name ILIKE '%' || $1 || '%' AND lang = $2 AND 'paper' = ANY(games)
+SELECT COUNT(DISTINCT oracle_id)
+FROM cards
+WHERE printed_name ILIKE '%' || $1 || '%'
+    AND lang = $2
+    AND 'paper' = ANY(games)
 `
 
 type CountCardsByNameListParams struct {
@@ -28,8 +34,11 @@ func (q *Queries) CountCardsByNameList(ctx context.Context, arg CountCardsByName
 }
 
 const countCardsByNameListEng = `-- name: CountCardsByNameListEng :one
-SELECT COUNT(*) FROM cards
-WHERE name ILIKE '%' || $1 || '%' AND lang = 'en' AND 'paper' = ANY(games)
+SELECT COUNT(DISTINCT oracle_id)
+FROM cards
+WHERE name ILIKE '%' || $1 || '%'
+    AND lang = 'en'
+    AND 'paper' = ANY(games)
 `
 
 func (q *Queries) CountCardsByNameListEng(ctx context.Context, dollar_1 sql.NullString) (int64, error) {
@@ -39,8 +48,30 @@ func (q *Queries) CountCardsByNameListEng(ctx context.Context, dollar_1 sql.Null
 	return count, err
 }
 
+const countCardsByOracleIDList = `-- name: CountCardsByOracleIDList :one
+SELECT COUNT(*)
+FROM cards
+WHERE oracle_id = $1
+    AND lang = $2
+    AND 'paper' = ANY(games)
+`
+
+type CountCardsByOracleIDListParams struct {
+	OracleID uuid.NullUUID
+	Lang     string
+}
+
+func (q *Queries) CountCardsByOracleIDList(ctx context.Context, arg CountCardsByOracleIDListParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countCardsByOracleIDList, arg.OracleID, arg.Lang)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const doesLangExist = `-- name: DoesLangExist :one
-SELECT name FROM cards WHERE lang = $1 LIMIT 1
+SELECT name
+FROM cards
+WHERE lang = $1 LIMIT 1
 `
 
 func (q *Queries) DoesLangExist(ctx context.Context, lang string) (string, error) {
@@ -50,10 +81,219 @@ func (q *Queries) DoesLangExist(ctx context.Context, lang string) (string, error
 	return name, err
 }
 
-const searchCardsByNameList = `-- name: SearchCardsByNameList :many
-SELECT printed_name, set_name, set_code, rarity FROM cards
-WHERE printed_name ILIKE '%' || $1 || '%' AND lang = $2 AND 'paper' = ANY(games)
+const getCardFaces = `-- name: GetCardFaces :many
+SELECT name,
+    printed_name,
+    mana_cost,
+    type_line,
+    printed_type_line,
+    oracle_text,
+    printed_text,
+    power,
+    toughness,
+    loyalty,
+    defense
+FROM card_faces
+WHERE card_id = $1
+`
+
+type GetCardFacesRow struct {
+	Name            string
+	PrintedName     sql.NullString
+	ManaCost        string
+	TypeLine        sql.NullString
+	PrintedTypeLine sql.NullString
+	OracleText      sql.NullString
+	PrintedText     sql.NullString
+	Power           sql.NullString
+	Toughness       sql.NullString
+	Loyalty         sql.NullString
+	Defense         sql.NullString
+}
+
+func (q *Queries) GetCardFaces(ctx context.Context, cardID uuid.UUID) ([]GetCardFacesRow, error) {
+	rows, err := q.db.QueryContext(ctx, getCardFaces, cardID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetCardFacesRow
+	for rows.Next() {
+		var i GetCardFacesRow
+		if err := rows.Scan(
+			&i.Name,
+			&i.PrintedName,
+			&i.ManaCost,
+			&i.TypeLine,
+			&i.PrintedTypeLine,
+			&i.OracleText,
+			&i.PrintedText,
+			&i.Power,
+			&i.Toughness,
+			&i.Loyalty,
+			&i.Defense,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getCardLegalties = `-- name: GetCardLegalties :one
+SELECT card_id, standard, pauper, vintage, pioneer, modern, legacy, commander, future, historic, timeless, gladiator, penny, oathbreaker, standardbrawl, brawl, alchemy, paupercommander, duel, oldschool, premodern, predh, created_at, updated_at FROM legalities WHERE card_id = $1
+`
+
+func (q *Queries) GetCardLegalties(ctx context.Context, cardID uuid.UUID) (Legality, error) {
+	row := q.db.QueryRowContext(ctx, getCardLegalties, cardID)
+	var i Legality
+	err := row.Scan(
+		&i.CardID,
+		&i.Standard,
+		&i.Pauper,
+		&i.Vintage,
+		&i.Pioneer,
+		&i.Modern,
+		&i.Legacy,
+		&i.Commander,
+		&i.Future,
+		&i.Historic,
+		&i.Timeless,
+		&i.Gladiator,
+		&i.Penny,
+		&i.Oathbreaker,
+		&i.Standardbrawl,
+		&i.Brawl,
+		&i.Alchemy,
+		&i.Paupercommander,
+		&i.Duel,
+		&i.Oldschool,
+		&i.Premodern,
+		&i.Predh,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getOracleRulings = `-- name: GetOracleRulings :many
+SELECT oracle_id, source, published_at, comment, created_at, updated_at FROM rulings WHERE oracle_id = $1
+`
+
+func (q *Queries) GetOracleRulings(ctx context.Context, oracleID uuid.UUID) ([]Ruling, error) {
+	rows, err := q.db.QueryContext(ctx, getOracleRulings, oracleID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Ruling
+	for rows.Next() {
+		var i Ruling
+		if err := rows.Scan(
+			&i.OracleID,
+			&i.Source,
+			&i.PublishedAt,
+			&i.Comment,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const searchCardByOracleID = `-- name: SearchCardByOracleID :one
+SELECT id,
+    name,
+    printed_name,
+    layout,
+    mana_cost,
+    type_line,
+    printed_type_line,
+    oracle_text,
+    printed_text,
+    power,
+    toughness,
+    loyalty,
+    defense,
+    multifaced
+FROM cards
+WHERE oracle_id = $1
+    AND lang = $2
+    AND 'paper' = ANY(games)
 ORDER BY release_date DESC
+LIMIT 1
+`
+
+type SearchCardByOracleIDParams struct {
+	OracleID uuid.NullUUID
+	Lang     string
+}
+
+type SearchCardByOracleIDRow struct {
+	ID              uuid.UUID
+	Name            string
+	PrintedName     sql.NullString
+	Layout          string
+	ManaCost        sql.NullString
+	TypeLine        string
+	PrintedTypeLine sql.NullString
+	OracleText      sql.NullString
+	PrintedText     sql.NullString
+	Power           sql.NullString
+	Toughness       sql.NullString
+	Loyalty         sql.NullString
+	Defense         sql.NullString
+	Multifaced      bool
+}
+
+func (q *Queries) SearchCardByOracleID(ctx context.Context, arg SearchCardByOracleIDParams) (SearchCardByOracleIDRow, error) {
+	row := q.db.QueryRowContext(ctx, searchCardByOracleID, arg.OracleID, arg.Lang)
+	var i SearchCardByOracleIDRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.PrintedName,
+		&i.Layout,
+		&i.ManaCost,
+		&i.TypeLine,
+		&i.PrintedTypeLine,
+		&i.OracleText,
+		&i.PrintedText,
+		&i.Power,
+		&i.Toughness,
+		&i.Loyalty,
+		&i.Defense,
+		&i.Multifaced,
+	)
+	return i, err
+}
+
+const searchCardsByNameList = `-- name: SearchCardsByNameList :many
+SELECT oracle_id, printed_name, mana_cost, printed_type_line, layout FROM (
+    SELECT DISTINCT ON (oracle_id)
+        oracle_id, printed_name, mana_cost, printed_type_line, layout
+    FROM cards
+    WHERE printed_name ILIKE '%' || $1 || '%'
+        AND lang = $2
+        AND 'paper' = ANY(games)
+    ORDER BY oracle_id, release_date DESC
+) AS unique_cards
+ORDER BY printed_name ASC
 LIMIT $3 OFFSET $4
 `
 
@@ -65,10 +305,11 @@ type SearchCardsByNameListParams struct {
 }
 
 type SearchCardsByNameListRow struct {
-	PrintedName sql.NullString
-	SetName     string
-	SetCode     string
-	Rarity      string
+	OracleID        uuid.NullUUID
+	PrintedName     sql.NullString
+	ManaCost        sql.NullString
+	PrintedTypeLine sql.NullString
+	Layout          string
 }
 
 func (q *Queries) SearchCardsByNameList(ctx context.Context, arg SearchCardsByNameListParams) ([]SearchCardsByNameListRow, error) {
@@ -86,10 +327,11 @@ func (q *Queries) SearchCardsByNameList(ctx context.Context, arg SearchCardsByNa
 	for rows.Next() {
 		var i SearchCardsByNameListRow
 		if err := rows.Scan(
+			&i.OracleID,
 			&i.PrintedName,
-			&i.SetName,
-			&i.SetCode,
-			&i.Rarity,
+			&i.ManaCost,
+			&i.PrintedTypeLine,
+			&i.Layout,
 		); err != nil {
 			return nil, err
 		}
@@ -105,9 +347,16 @@ func (q *Queries) SearchCardsByNameList(ctx context.Context, arg SearchCardsByNa
 }
 
 const searchCardsByNameListEng = `-- name: SearchCardsByNameListEng :many
-SELECT name, set_name, set_code, rarity FROM cards
-WHERE name ILIKE '%' || $1 || '%' AND lang = 'en' AND 'paper' = ANY(games)
-ORDER BY release_date DESC
+SELECT id, oracle_id, name, mana_cost, type_line, release_date, layout FROM (
+    SELECT DISTINCT ON (oracle_id)
+        id, oracle_id, name, mana_cost, type_line, release_date, layout
+    FROM cards
+    WHERE name ILIKE '%' || $1 || '%'
+      AND lang = 'en'
+      AND 'paper' = ANY(games)
+    ORDER BY oracle_id, release_date DESC
+) AS unique_cards
+ORDER BY name ASC
 LIMIT $2 OFFSET $3
 `
 
@@ -118,10 +367,13 @@ type SearchCardsByNameListEngParams struct {
 }
 
 type SearchCardsByNameListEngRow struct {
-	Name    string
-	SetName string
-	SetCode string
-	Rarity  string
+	ID          uuid.UUID
+	OracleID    uuid.NullUUID
+	Name        string
+	ManaCost    sql.NullString
+	TypeLine    string
+	ReleaseDate time.Time
+	Layout      string
 }
 
 func (q *Queries) SearchCardsByNameListEng(ctx context.Context, arg SearchCardsByNameListEngParams) ([]SearchCardsByNameListEngRow, error) {
@@ -134,10 +386,85 @@ func (q *Queries) SearchCardsByNameListEng(ctx context.Context, arg SearchCardsB
 	for rows.Next() {
 		var i SearchCardsByNameListEngRow
 		if err := rows.Scan(
+			&i.ID,
+			&i.OracleID,
 			&i.Name,
+			&i.ManaCost,
+			&i.TypeLine,
+			&i.ReleaseDate,
+			&i.Layout,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const searchCardsByOracleIDList = `-- name: SearchCardsByOracleIDList :many
+SELECT id,
+    name,
+    flavor_name,
+    printed_name,
+    release_date,
+    set_name,
+    set_code,
+    collector_number
+FROM cards
+WHERE oracle_id = $1
+    AND lang = $2
+    AND 'paper' = ANY(games)
+ORDER BY release_date DESC
+LIMIT $3 OFFSET $4
+`
+
+type SearchCardsByOracleIDListParams struct {
+	OracleID uuid.NullUUID
+	Lang     string
+	Limit    int32
+	Offset   int32
+}
+
+type SearchCardsByOracleIDListRow struct {
+	ID              uuid.UUID
+	Name            string
+	FlavorName      sql.NullString
+	PrintedName     sql.NullString
+	ReleaseDate     time.Time
+	SetName         string
+	SetCode         string
+	CollectorNumber string
+}
+
+func (q *Queries) SearchCardsByOracleIDList(ctx context.Context, arg SearchCardsByOracleIDListParams) ([]SearchCardsByOracleIDListRow, error) {
+	rows, err := q.db.QueryContext(ctx, searchCardsByOracleIDList,
+		arg.OracleID,
+		arg.Lang,
+		arg.Limit,
+		arg.Offset,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SearchCardsByOracleIDListRow
+	for rows.Next() {
+		var i SearchCardsByOracleIDListRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.FlavorName,
+			&i.PrintedName,
+			&i.ReleaseDate,
 			&i.SetName,
 			&i.SetCode,
-			&i.Rarity,
+			&i.CollectorNumber,
 		); err != nil {
 			return nil, err
 		}

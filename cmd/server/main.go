@@ -42,5 +42,7 @@ func main() {
 	router.Use(handlerError())
 
 	router.GET("/cards/search", cfg.handlerSearchCards)
+	router.GET("/cards/oracle/:id", cfg.handlerCardsByOracleID)
+	router.GET("/rulings/:id", cfg.handlerRulings)
 	router.Run(":" + port)
 }
