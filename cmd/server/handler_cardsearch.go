@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"math"
@@ -104,7 +105,7 @@ func (cfg *apiConfig) handlerSearchCards(c *gin.Context) {
 				OracleID: dbutils.ToUUIDPtr(card.OracleID),
 				Name:     card.Name,
 				Layout:   card.Layout,
-				ManaCost: &card.ManaCost.String,
+				ManaCost: dbutils.FromNullString(card.ManaCost),
 				TypeLine: card.TypeLine,
 			}
 		}
@@ -130,7 +131,7 @@ func (cfg *apiConfig) handlerSearchCards(c *gin.Context) {
 				OracleID: dbutils.ToUUIDPtr(card.OracleID),
 				Name:     card.PrintedName.String,
 				Layout:   card.Layout,
-				ManaCost: &card.ManaCost.String,
+				ManaCost: dbutils.FromNullString(card.ManaCost),
 				TypeLine: card.PrintedTypeLine.String,
 			}
 		}
@@ -140,7 +141,16 @@ func (cfg *apiConfig) handlerSearchCards(c *gin.Context) {
 
 	next_page := ""
 	if numberPages > 1 && page < numberPages {
-		next_page = getNextPageURL(name, limit, lang, page)
+		base, _ := url.Parse("/cards/search")
+
+		params := url.Values{}
+		params.Add("name", name)
+		params.Add("limit", fmt.Sprintf("%d", limit))
+		params.Add("lang", lang)
+		params.Add("page", fmt.Sprintf("%d", page+1))
+
+		base.RawQuery = params.Encode()
+		next_page = base.String()
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -150,28 +160,6 @@ func (cfg *apiConfig) handlerSearchCards(c *gin.Context) {
 		"number_results": numberResults,
 		"next_page":      next_page,
 	})
-}
-
-func getNextPageURL(name string, limit int, lang string, page int) string {
-	base, _ := url.Parse("/cards/search")
-
-	params := url.Values{}
-	params.Add("name", name)
-	params.Add("limit", fmt.Sprintf("%d", limit))
-	params.Add("lang", lang)
-	params.Add("page", fmt.Sprintf("%d", page+1))
-
-	base.RawQuery = params.Encode()
-
-	return base.String()
-}
-
-func calculatePages(totalCards int64, pageSize int) int {
-	if totalCards == 0 {
-		return 0
-	}
-
-	return int(math.Ceil(float64(totalCards) / float64(pageSize)))
 }
 
 func (cfg *apiConfig) handlerRulings(c *gin.Context) {
@@ -195,7 +183,7 @@ func (cfg *apiConfig) handlerRulings(c *gin.Context) {
 	for i, rule := range rules {
 		rulingsJSON[i] = types.ResponseRulings{
 			OracleID:    rule.OracleID,
-			Source:      &rule.Source.String,
+			Source:      dbutils.FromNullString(rule.Source),
 			PublishedAt: rule.PublishedAt,
 			Comment:     rule.Comment,
 		}
@@ -269,115 +257,69 @@ func (cfg *apiConfig) handlerCardsByOracleID(c *gin.Context) {
 	}
 
 	oracleCard, err := cfg.db.SearchCardByOracleID(c.Request.Context(), oracleParams)
-	if err != nil {
-		c.Error(err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
-		return
-	}
-
-	multifaced := true
-
-	multifaces, err := cfg.db.GetCardFaces(c.Request.Context(), oracleCard.ID)
 	if err == sql.ErrNoRows {
-		multifaced = false
+		c.JSON(http.StatusNotFound, gin.H{"error": "not found OracleID"})
+		return
 	} else if err != nil {
 		c.Error(err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
 		return
 	}
 
-	oracleCardJSON := types.ResponseByOracleID{}
+	oracleCardJSON := types.ResponseByOracleID{
+		Name:          oracleCard.Name,
+		Layout:        oracleCard.Layout,
+		Cmc:           oracleCard.Cmc,
+		Colors:        &oracleCard.Colors,
+		ColorIdentity: oracleCard.ColorIdentity,
+		ManaCost:      dbutils.FromNullString(oracleCard.ManaCost),
+		TypeLine:      oracleCard.TypeLine,
+		OracleText:    dbutils.FromNullString(oracleCard.OracleText),
+		Power:         dbutils.FromNullString(oracleCard.Power),
+		Toughness:     dbutils.FromNullString(oracleCard.Toughness),
+		Loyalty:       dbutils.FromNullString(oracleCard.Loyalty),
+		Defense:       dbutils.FromNullString(oracleCard.Defense),
+		Multifaced:    false,
+	}
 
-	if lang == "en" {
-		if multifaced {
-			responseFaces := make([]types.SingleCardFacesByOracleID, len(multifaces))
+	multifaces := []database.CardFace{}
 
-			for i, face := range multifaces {
-				responseFaces[i] = types.SingleCardFacesByOracleID{
-					Name:       face.Name,
-					ManaCost:   face.ManaCost,
-					TypeLine:   &face.TypeLine.String,
-					OracleText: &face.OracleText.String,
-					Power:      &face.Power.String,
-					Toughness:  &face.Toughness.String,
-					Loyalty:    &face.Loyalty.String,
-					Defense:    &face.Defense.String,
-				}
+	if oracleCard.Multifaced {
+		multifaces, err = cfg.db.GetCardFaces(c.Request.Context(), oracleCard.ID)
+		if err != nil {
+			c.Error(err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
+			return
+		}
+
+		responseFaces := make([]types.CardFacesByOracleID, len(multifaces))
+
+		for i, face := range multifaces {
+			responseFaces[i] = types.CardFacesByOracleID{
+				Name:       face.Name,
+				ManaCost:   face.ManaCost,
+				Cmc:        dbutils.FromNullFloat64(face.Cmc),
+				Colors:     &face.Colors,
+				TypeLine:   dbutils.FromNullString(face.TypeLine),
+				OracleText: dbutils.FromNullString(face.OracleText),
+				Power:      dbutils.FromNullString(face.Power),
+				Toughness:  dbutils.FromNullString(face.Toughness),
+				Loyalty:    dbutils.FromNullString(face.Loyalty),
+				Defense:    dbutils.FromNullString(face.Defense),
 			}
 
-			oracleCardJSON = types.ResponseByOracleID{
-				Name:       oracleCard.Name,
-				Layout:     oracleCard.Layout,
-				ManaCost:   &oracleCard.ManaCost.String,
-				TypeLine:   oracleCard.TypeLine,
-				OracleText: &oracleCard.OracleText.String,
-				Power:      &oracleCard.Power.String,
-				Toughness:  &oracleCard.Toughness.String,
-				Loyalty:    &oracleCard.Loyalty.String,
-				Defense:    &oracleCard.Defense.String,
-				CardFaces:  &responseFaces,
-				Multifaced: true,
-			}
-
-		} else {
-			oracleCardJSON = types.ResponseByOracleID{
-				Name:       oracleCard.Name,
-				Layout:     oracleCard.Layout,
-				ManaCost:   &oracleCard.ManaCost.String,
-				TypeLine:   oracleCard.TypeLine,
-				OracleText: &oracleCard.OracleText.String,
-				Power:      &oracleCard.Power.String,
-				Toughness:  &oracleCard.Toughness.String,
-				Loyalty:    &oracleCard.Loyalty.String,
-				Defense:    &oracleCard.Defense.String,
-				Multifaced: false,
+			if lang != "en" {
+				responseFaces[i].Name = face.PrintedName.String
+				responseFaces[i].TypeLine = dbutils.FromNullString(face.PrintedTypeLine)
+				responseFaces[i].PrintedText = dbutils.FromNullString(face.PrintedText)
 			}
 		}
-	} else {
-		if multifaced {
-			responseFaces := make([]types.SingleCardFacesByOracleID, len(multifaces))
+	}
 
-			for i, face := range multifaces {
-				responseFaces[i] = types.SingleCardFacesByOracleID{
-					Name:       face.PrintedName.String,
-					ManaCost:   face.ManaCost,
-					TypeLine:   &face.PrintedTypeLine.String,
-					OracleText: &face.PrintedText.String,
-					Power:      &face.Power.String,
-					Toughness:  &face.Toughness.String,
-					Loyalty:    &face.Loyalty.String,
-					Defense:    &face.Defense.String,
-				}
-			}
-
-			oracleCardJSON = types.ResponseByOracleID{
-				Name:       oracleCard.PrintedName.String,
-				Layout:     oracleCard.Layout,
-				ManaCost:   &oracleCard.ManaCost.String,
-				TypeLine:   oracleCard.PrintedTypeLine.String,
-				OracleText: &oracleCard.PrintedText.String,
-				Power:      &oracleCard.Power.String,
-				Toughness:  &oracleCard.Toughness.String,
-				Loyalty:    &oracleCard.Loyalty.String,
-				Defense:    &oracleCard.Defense.String,
-				CardFaces:  &responseFaces,
-				Multifaced: true,
-			}
-
-		} else {
-			oracleCardJSON = types.ResponseByOracleID{
-				Name:       oracleCard.PrintedName.String,
-				Layout:     oracleCard.Layout,
-				ManaCost:   &oracleCard.ManaCost.String,
-				TypeLine:   oracleCard.PrintedTypeLine.String,
-				OracleText: &oracleCard.PrintedText.String,
-				Power:      &oracleCard.Power.String,
-				Toughness:  &oracleCard.Toughness.String,
-				Loyalty:    &oracleCard.Loyalty.String,
-				Defense:    &oracleCard.Defense.String,
-				Multifaced: false,
-			}
-		}
+	if lang != "en" {
+		oracleCardJSON.Name = oracleCard.PrintedName.String
+		oracleCardJSON.TypeLine = oracleCard.PrintedTypeLine.String
+		oracleCardJSON.PrintedText = dbutils.FromNullString(oracleCard.PrintedText)
 	}
 
 	cardParams := database.SearchCardsByOracleIDListParams{
@@ -397,58 +339,25 @@ func (cfg *apiConfig) handlerCardsByOracleID(c *gin.Context) {
 	results := make([]types.CardResponseSearchByOracleID, len(cards))
 
 	for i, card := range cards {
-		if lang == "en" {
-			results[i] = types.CardResponseSearchByOracleID{
-				ID:              card.ID,
-				Name:            card.Name,
-				FlavorName:      &card.FlavorName.String,
-				ReleasedAt:      card.ReleaseDate,
-				Set:             card.SetCode,
-				SetName:         card.SetName,
-				CollectorNumber: card.CollectorNumber,
-			}
-		} else {
-			results[i] = types.CardResponseSearchByOracleID{
-				ID:              card.ID,
-				Name:            card.PrintedName.String,
-				FlavorName:      &card.FlavorName.String,
-				ReleasedAt:      card.ReleaseDate,
-				Set:             card.SetCode,
-				SetName:         card.SetName,
-				CollectorNumber: card.CollectorNumber,
-			}
+		results[i] = types.CardResponseSearchByOracleID{
+			ID:              card.ID,
+			Name:            card.Name,
+			FlavorName:      dbutils.FromNullString(card.FlavorName),
+			ReleasedAt:      card.ReleaseDate,
+			Set:             card.SetCode,
+			SetName:         card.SetName,
+			CollectorNumber: card.CollectorNumber,
+		}
+		if lang != "en" {
+			results[i].Name = card.PrintedName.String
 		}
 	}
 
-	legalities, err := cfg.db.GetCardLegalties(c.Request.Context(), oracleCard.ID)
+	legalitiesJSON, err := cfg.getLegalities(oracleCard.ID, c.Request.Context())
 	if err != nil {
 		c.Error(err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
 		return
-	}
-
-	legalitiesJSON := types.Legalities{
-		Standard:        &legalities.Standard.String,
-		Future:          &legalities.Future.String,
-		Historic:        &legalities.Historic.String,
-		Timeless:        &legalities.Timeless.String,
-		Gladiator:       &legalities.Gladiator.String,
-		Pioneer:         &legalities.Pioneer.String,
-		Modern:          &legalities.Modern.String,
-		Legacy:          &legalities.Legacy.String,
-		Pauper:          &legalities.Pauper.String,
-		Vintage:         &legalities.Vintage.String,
-		Penny:           &legalities.Penny.String,
-		Commander:       &legalities.Commander.String,
-		Oathbreaker:     &legalities.Oathbreaker.String,
-		Standardbrawl:   &legalities.Standardbrawl.String,
-		Brawl:           &legalities.Brawl.String,
-		Alchemy:         &legalities.Alchemy.String,
-		Paupercommander: &legalities.Paupercommander.String,
-		Duel:            &legalities.Duel.String,
-		Oldschool:       &legalities.Oldschool.String,
-		Premodern:       &legalities.Premodern.String,
-		Predh:           &legalities.Predh.String,
 	}
 
 	rulings, err := cfg.db.GetOracleRulings(c.Request.Context(), id)
@@ -463,13 +372,13 @@ func (cfg *apiConfig) handlerCardsByOracleID(c *gin.Context) {
 	for i, rule := range rulings {
 		rulingsJSON[i] = types.ResponseRulings{
 			OracleID:    rule.OracleID,
-			Source:      &rule.Source.String,
+			Source:      dbutils.FromNullString(rule.Source),
 			PublishedAt: rule.PublishedAt,
 			Comment:     rule.Comment,
 		}
 	}
 
-	path := fmt.Sprintf("cards/oracle/%v", idStr)
+	path := fmt.Sprintf("/cards/oracle/%v", idStr)
 	base, _ := url.Parse(path)
 
 	params := url.Values{}
@@ -489,4 +398,186 @@ func (cfg *apiConfig) handlerCardsByOracleID(c *gin.Context) {
 		"legalities":     legalitiesJSON,
 		"results":        results,
 	})
+}
+
+func (cfg *apiConfig) handlerCardByID(c *gin.Context) {
+	idStr := c.Param("id")
+
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		c.Error(err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "wrong UUID format"})
+		return
+	}
+
+	card, err := cfg.db.GetCardByID(c.Request.Context(), id)
+	if err == sql.ErrNoRows {
+		c.JSON(http.StatusNotFound, gin.H{"error": "not found CardID"})
+		return
+	} else if err != nil {
+		c.Error(err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
+		return
+	}
+
+	legalitiesJSON, err := cfg.getLegalities(card.ID, c.Request.Context())
+	if err != nil {
+		c.Error(err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
+		return
+	}
+
+	cardJSON := types.ResponseCard{
+		ID:         card.ID,
+		OracleID:   dbutils.ToUUIDPtr(card.OracleID),
+		Name:       card.Name,
+		FlavorName: dbutils.FromNullString(card.FlavorName),
+		Lang:       card.Lang,
+		ReleasedAt: card.ReleaseDate,
+		Layout:     card.Layout,
+		ImageUris: types.ResponseImages{
+			ImageNormal: dbutils.FromNullString(card.Image),
+			ImagePNG:    dbutils.FromNullString(card.ImagePng),
+			ImageLarge:  dbutils.FromNullString(card.ImageLarge),
+			ImageSmall:  dbutils.FromNullString(card.ImageSmall),
+			ImageCrop:   dbutils.FromNullString(card.ImageCrop),
+		},
+		ManaCost:        dbutils.FromNullString(card.ManaCost),
+		Cmc:             card.Cmc,
+		TypeLine:        card.TypeLine,
+		OracleText:      dbutils.FromNullString(card.OracleText),
+		Power:           dbutils.FromNullString(card.Power),
+		Toughness:       dbutils.FromNullString(card.Toughness),
+		Loyalty:         dbutils.FromNullString(card.Loyalty),
+		Colors:          &card.Colors,
+		ColorIdentity:   card.ColorIdentity,
+		Defense:         dbutils.FromNullString(card.Defense),
+		Keywords:        card.Keywords,
+		FlavorText:      dbutils.FromNullString(card.FlavorText),
+		Legalities:      legalitiesJSON,
+		GameChanger:     dbutils.FromNullBool(card.GameChanger),
+		Finishes:        card.Finishes,
+		Set:             card.SetCode,
+		SetName:         card.SetName,
+		CollectorNumber: card.CollectorNumber,
+		Rarity:          card.Rarity,
+		Artist:          dbutils.FromNullString(card.Artist),
+		EdhrecRank:      dbutils.FromNullInt32(card.EdhrecRank),
+	}
+
+	multifaces := []database.CardFace{}
+
+	if card.Multifaced {
+		multifaces, err = cfg.db.GetCardFaces(c.Request.Context(), card.ID)
+		if err != nil {
+			c.Error(err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
+			return
+		}
+
+		responseFaces := make([]types.ResponseCardFaces, len(multifaces))
+
+		for i, face := range multifaces {
+			responseFaces[i] = types.ResponseCardFaces{
+				Name:       face.Name,
+				ManaCost:   face.ManaCost,
+				Cmc:        dbutils.FromNullFloat64(face.Cmc),
+				Colors:     &face.Colors,
+				TypeLine:   dbutils.FromNullString(face.TypeLine),
+				OracleText: dbutils.FromNullString(face.OracleText),
+				Power:      dbutils.FromNullString(face.Power),
+				Toughness:  dbutils.FromNullString(face.Toughness),
+				Loyalty:    dbutils.FromNullString(face.Loyalty),
+				Defense:    dbutils.FromNullString(face.Defense),
+				FlavorText: dbutils.FromNullString(face.FlavorText),
+				Artist:     dbutils.FromNullString(face.Artist),
+				Layout:     dbutils.FromNullString(face.Layout),
+				ImageUris: types.ResponseImages{
+					ImageNormal: dbutils.FromNullString(card.Image),
+					ImagePNG:    dbutils.FromNullString(card.ImagePng),
+					ImageLarge:  dbutils.FromNullString(card.ImageLarge),
+					ImageSmall:  dbutils.FromNullString(card.ImageSmall),
+					ImageCrop:   dbutils.FromNullString(card.ImageCrop),
+				},
+			}
+
+			if card.Lang != "en" {
+				responseFaces[i].Name = face.PrintedName.String
+				responseFaces[i].TypeLine = dbutils.FromNullString(face.PrintedTypeLine)
+				responseFaces[i].PrintedText = dbutils.FromNullString(face.PrintedText)
+			}
+		}
+
+		cardJSON.CardFaces = responseFaces
+	}
+
+	if card.Lang != "en" {
+		cardJSON.Name = card.PrintedName.String
+		cardJSON.TypeLine = card.PrintedTypeLine.String
+		cardJSON.PrintedText = dbutils.FromNullString(card.PrintedText)
+	}
+
+	rulings, err := cfg.db.GetOracleRulings(c.Request.Context(), id)
+	if err != nil {
+		c.Error(err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
+		return
+	}
+
+	rulingsJSON := make([]types.ResponseRulings, len(rulings))
+
+	for i, rule := range rulings {
+		rulingsJSON[i] = types.ResponseRulings{
+			OracleID:    rule.OracleID,
+			Source:      dbutils.FromNullString(rule.Source),
+			PublishedAt: rule.PublishedAt,
+			Comment:     rule.Comment,
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"card":    cardJSON,
+		"rulings": rulingsJSON,
+	})
+}
+
+func calculatePages(totalCards int64, pageSize int) int {
+	if totalCards == 0 {
+		return 0
+	}
+
+	return int(math.Ceil(float64(totalCards) / float64(pageSize)))
+}
+
+func (cfg *apiConfig) getLegalities(oracleID uuid.UUID, ctx context.Context) (types.Legalities, error) {
+	legalities, err := cfg.db.GetCardLegalties(ctx, oracleID)
+	if err == sql.ErrNoRows {
+		return types.Legalities{}, nil
+	} else if err != nil {
+		return types.Legalities{}, err
+	}
+
+	return types.Legalities{
+		Standard:        dbutils.FromNullString(legalities.Standard),
+		Future:          dbutils.FromNullString(legalities.Future),
+		Historic:        dbutils.FromNullString(legalities.Historic),
+		Timeless:        dbutils.FromNullString(legalities.Timeless),
+		Gladiator:       dbutils.FromNullString(legalities.Gladiator),
+		Pioneer:         dbutils.FromNullString(legalities.Pioneer),
+		Modern:          dbutils.FromNullString(legalities.Modern),
+		Legacy:          dbutils.FromNullString(legalities.Legacy),
+		Pauper:          dbutils.FromNullString(legalities.Pauper),
+		Vintage:         dbutils.FromNullString(legalities.Vintage),
+		Penny:           dbutils.FromNullString(legalities.Penny),
+		Commander:       dbutils.FromNullString(legalities.Commander),
+		Oathbreaker:     dbutils.FromNullString(legalities.Oathbreaker),
+		Standardbrawl:   dbutils.FromNullString(legalities.Standardbrawl),
+		Brawl:           dbutils.FromNullString(legalities.Brawl),
+		Alchemy:         dbutils.FromNullString(legalities.Alchemy),
+		Paupercommander: dbutils.FromNullString(legalities.Paupercommander),
+		Duel:            dbutils.FromNullString(legalities.Duel),
+		Oldschool:       dbutils.FromNullString(legalities.Oldschool),
+		Premodern:       dbutils.FromNullString(legalities.Premodern),
+		Predh:           dbutils.FromNullString(legalities.Predh),
+	}, nil
 }

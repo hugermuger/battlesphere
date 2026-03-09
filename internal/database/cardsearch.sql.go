@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 )
 
 const countCardsByNameList = `-- name: CountCardsByNameList :one
@@ -19,6 +20,7 @@ FROM cards
 WHERE printed_name ILIKE '%' || $1 || '%'
     AND lang = $2
     AND 'paper' = ANY(games)
+    AND layout != 'art_series'
 `
 
 type CountCardsByNameListParams struct {
@@ -39,6 +41,7 @@ FROM cards
 WHERE name ILIKE '%' || $1 || '%'
     AND lang = 'en'
     AND 'paper' = ANY(games)
+    AND layout != 'art_series'
 `
 
 func (q *Queries) CountCardsByNameListEng(ctx context.Context, dollar_1 sql.NullString) (int64, error) {
@@ -81,57 +84,108 @@ func (q *Queries) DoesLangExist(ctx context.Context, lang string) (string, error
 	return name, err
 }
 
+const getCardByID = `-- name: GetCardByID :one
+SELECT id, arena_id, mtgo_id, cardmarket_id, oracle_id, release_date, lang, layout, edhrec_rank, game_changer, multifaced, cmc, color_identity, colors, defense, keywords, loyalty, mana_cost, name, oracle_text, power, toughness, type_line, artist, collector_number, finishes, flavor_name, flavor_text, games, image, image_png, image_large, image_small, image_crop, price_usd, price_eur, price_foil_usd, price_foil_eur, price_etched_usd, printed_name, printed_text, printed_type_line, rarity, set_name, set_code, created_at, updated_at
+FROM cards
+WHERE id = $1
+`
+
+func (q *Queries) GetCardByID(ctx context.Context, id uuid.UUID) (Card, error) {
+	row := q.db.QueryRowContext(ctx, getCardByID, id)
+	var i Card
+	err := row.Scan(
+		&i.ID,
+		&i.ArenaID,
+		&i.MtgoID,
+		&i.CardmarketID,
+		&i.OracleID,
+		&i.ReleaseDate,
+		&i.Lang,
+		&i.Layout,
+		&i.EdhrecRank,
+		&i.GameChanger,
+		&i.Multifaced,
+		&i.Cmc,
+		pq.Array(&i.ColorIdentity),
+		pq.Array(&i.Colors),
+		&i.Defense,
+		pq.Array(&i.Keywords),
+		&i.Loyalty,
+		&i.ManaCost,
+		&i.Name,
+		&i.OracleText,
+		&i.Power,
+		&i.Toughness,
+		&i.TypeLine,
+		&i.Artist,
+		&i.CollectorNumber,
+		pq.Array(&i.Finishes),
+		&i.FlavorName,
+		&i.FlavorText,
+		pq.Array(&i.Games),
+		&i.Image,
+		&i.ImagePng,
+		&i.ImageLarge,
+		&i.ImageSmall,
+		&i.ImageCrop,
+		&i.PriceUsd,
+		&i.PriceEur,
+		&i.PriceFoilUsd,
+		&i.PriceFoilEur,
+		&i.PriceEtchedUsd,
+		&i.PrintedName,
+		&i.PrintedText,
+		&i.PrintedTypeLine,
+		&i.Rarity,
+		&i.SetName,
+		&i.SetCode,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getCardFaces = `-- name: GetCardFaces :many
-SELECT name,
-    printed_name,
-    mana_cost,
-    type_line,
-    printed_type_line,
-    oracle_text,
-    printed_text,
-    power,
-    toughness,
-    loyalty,
-    defense
+SELECT card_id, face_index, artist, cmc, colors, defense, flavor_text, image, image_png, image_large, image_small, image_crop, layout, loyalty, mana_cost, name, oracle_text, power, printed_name, printed_text, printed_type_line, toughness, type_line, created_at, updated_at
 FROM card_faces
 WHERE card_id = $1
 `
 
-type GetCardFacesRow struct {
-	Name            string
-	PrintedName     sql.NullString
-	ManaCost        string
-	TypeLine        sql.NullString
-	PrintedTypeLine sql.NullString
-	OracleText      sql.NullString
-	PrintedText     sql.NullString
-	Power           sql.NullString
-	Toughness       sql.NullString
-	Loyalty         sql.NullString
-	Defense         sql.NullString
-}
-
-func (q *Queries) GetCardFaces(ctx context.Context, cardID uuid.UUID) ([]GetCardFacesRow, error) {
+func (q *Queries) GetCardFaces(ctx context.Context, cardID uuid.UUID) ([]CardFace, error) {
 	rows, err := q.db.QueryContext(ctx, getCardFaces, cardID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetCardFacesRow
+	var items []CardFace
 	for rows.Next() {
-		var i GetCardFacesRow
+		var i CardFace
 		if err := rows.Scan(
-			&i.Name,
-			&i.PrintedName,
-			&i.ManaCost,
-			&i.TypeLine,
-			&i.PrintedTypeLine,
-			&i.OracleText,
-			&i.PrintedText,
-			&i.Power,
-			&i.Toughness,
-			&i.Loyalty,
+			&i.CardID,
+			&i.FaceIndex,
+			&i.Artist,
+			&i.Cmc,
+			pq.Array(&i.Colors),
 			&i.Defense,
+			&i.FlavorText,
+			&i.Image,
+			&i.ImagePng,
+			&i.ImageLarge,
+			&i.ImageSmall,
+			&i.ImageCrop,
+			&i.Layout,
+			&i.Loyalty,
+			&i.ManaCost,
+			&i.Name,
+			&i.OracleText,
+			&i.Power,
+			&i.PrintedName,
+			&i.PrintedText,
+			&i.PrintedTypeLine,
+			&i.Toughness,
+			&i.TypeLine,
+			&i.CreatedAt,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -217,20 +271,7 @@ func (q *Queries) GetOracleRulings(ctx context.Context, oracleID uuid.UUID) ([]R
 }
 
 const searchCardByOracleID = `-- name: SearchCardByOracleID :one
-SELECT id,
-    name,
-    printed_name,
-    layout,
-    mana_cost,
-    type_line,
-    printed_type_line,
-    oracle_text,
-    printed_text,
-    power,
-    toughness,
-    loyalty,
-    defense,
-    multifaced
+SELECT id, arena_id, mtgo_id, cardmarket_id, oracle_id, release_date, lang, layout, edhrec_rank, game_changer, multifaced, cmc, color_identity, colors, defense, keywords, loyalty, mana_cost, name, oracle_text, power, toughness, type_line, artist, collector_number, finishes, flavor_name, flavor_text, games, image, image_png, image_large, image_small, image_crop, price_usd, price_eur, price_foil_usd, price_foil_eur, price_etched_usd, printed_name, printed_text, printed_type_line, rarity, set_name, set_code, created_at, updated_at
 FROM cards
 WHERE oracle_id = $1
     AND lang = $2
@@ -244,41 +285,57 @@ type SearchCardByOracleIDParams struct {
 	Lang     string
 }
 
-type SearchCardByOracleIDRow struct {
-	ID              uuid.UUID
-	Name            string
-	PrintedName     sql.NullString
-	Layout          string
-	ManaCost        sql.NullString
-	TypeLine        string
-	PrintedTypeLine sql.NullString
-	OracleText      sql.NullString
-	PrintedText     sql.NullString
-	Power           sql.NullString
-	Toughness       sql.NullString
-	Loyalty         sql.NullString
-	Defense         sql.NullString
-	Multifaced      bool
-}
-
-func (q *Queries) SearchCardByOracleID(ctx context.Context, arg SearchCardByOracleIDParams) (SearchCardByOracleIDRow, error) {
+func (q *Queries) SearchCardByOracleID(ctx context.Context, arg SearchCardByOracleIDParams) (Card, error) {
 	row := q.db.QueryRowContext(ctx, searchCardByOracleID, arg.OracleID, arg.Lang)
-	var i SearchCardByOracleIDRow
+	var i Card
 	err := row.Scan(
 		&i.ID,
-		&i.Name,
-		&i.PrintedName,
+		&i.ArenaID,
+		&i.MtgoID,
+		&i.CardmarketID,
+		&i.OracleID,
+		&i.ReleaseDate,
+		&i.Lang,
 		&i.Layout,
+		&i.EdhrecRank,
+		&i.GameChanger,
+		&i.Multifaced,
+		&i.Cmc,
+		pq.Array(&i.ColorIdentity),
+		pq.Array(&i.Colors),
+		&i.Defense,
+		pq.Array(&i.Keywords),
+		&i.Loyalty,
 		&i.ManaCost,
-		&i.TypeLine,
-		&i.PrintedTypeLine,
+		&i.Name,
 		&i.OracleText,
-		&i.PrintedText,
 		&i.Power,
 		&i.Toughness,
-		&i.Loyalty,
-		&i.Defense,
-		&i.Multifaced,
+		&i.TypeLine,
+		&i.Artist,
+		&i.CollectorNumber,
+		pq.Array(&i.Finishes),
+		&i.FlavorName,
+		&i.FlavorText,
+		pq.Array(&i.Games),
+		&i.Image,
+		&i.ImagePng,
+		&i.ImageLarge,
+		&i.ImageSmall,
+		&i.ImageCrop,
+		&i.PriceUsd,
+		&i.PriceEur,
+		&i.PriceFoilUsd,
+		&i.PriceFoilEur,
+		&i.PriceEtchedUsd,
+		&i.PrintedName,
+		&i.PrintedText,
+		&i.PrintedTypeLine,
+		&i.Rarity,
+		&i.SetName,
+		&i.SetCode,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -286,11 +343,16 @@ func (q *Queries) SearchCardByOracleID(ctx context.Context, arg SearchCardByOrac
 const searchCardsByNameList = `-- name: SearchCardsByNameList :many
 SELECT oracle_id, printed_name, mana_cost, printed_type_line, layout FROM (
     SELECT DISTINCT ON (oracle_id)
-        oracle_id, printed_name, mana_cost, printed_type_line, layout
+        oracle_id,
+        printed_name,
+        mana_cost,
+        printed_type_line,
+        layout
     FROM cards
     WHERE printed_name ILIKE '%' || $1 || '%'
         AND lang = $2
         AND 'paper' = ANY(games)
+        AND layout != 'art_series'
     ORDER BY oracle_id, release_date DESC
 ) AS unique_cards
 ORDER BY printed_name ASC
@@ -349,11 +411,18 @@ func (q *Queries) SearchCardsByNameList(ctx context.Context, arg SearchCardsByNa
 const searchCardsByNameListEng = `-- name: SearchCardsByNameListEng :many
 SELECT id, oracle_id, name, mana_cost, type_line, release_date, layout FROM (
     SELECT DISTINCT ON (oracle_id)
-        id, oracle_id, name, mana_cost, type_line, release_date, layout
+        id,
+        oracle_id,
+        name,
+        mana_cost,
+        type_line,
+        release_date,
+        layout
     FROM cards
     WHERE name ILIKE '%' || $1 || '%'
       AND lang = 'en'
       AND 'paper' = ANY(games)
+      AND layout != 'art_series'
     ORDER BY oracle_id, release_date DESC
 ) AS unique_cards
 ORDER BY name ASC

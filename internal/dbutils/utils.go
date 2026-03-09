@@ -70,6 +70,34 @@ func StringToNullFloat64(s *string) (sql.NullFloat64, error) {
 	return sql.NullFloat64{Float64: f, Valid: true}, nil
 }
 
+func FromNullString(ns sql.NullString) *string {
+	if !ns.Valid {
+		return nil
+	}
+	return &ns.String
+}
+
+func FromNullFloat64(nf sql.NullFloat64) *float64 {
+	if !nf.Valid {
+		return nil
+	}
+	return &nf.Float64
+}
+
+func FromNullBool(nb sql.NullBool) *bool {
+	if !nb.Valid {
+		return nil
+	}
+	return &nb.Bool
+}
+
+func FromNullInt32(ni sql.NullInt32) *int32 {
+	if !ni.Valid {
+		return nil
+	}
+	return &ni.Int32
+}
+
 func SafeSlice(s *[]string) []string {
 	if s == nil {
 		return []string{}

@@ -43,6 +43,7 @@ func main() {
 
 	router.GET("/cards/search", cfg.handlerSearchCards)
 	router.GET("/cards/oracle/:id", cfg.handlerCardsByOracleID)
+	router.GET("/cards/:id", cfg.handlerCardByID)
 	router.GET("/rulings/:id", cfg.handlerRulings)
 	router.Run(":" + port)
 }

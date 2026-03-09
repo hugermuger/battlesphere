@@ -1,11 +1,18 @@
 -- name: SearchCardsByNameListEng :many
 SELECT * FROM (
     SELECT DISTINCT ON (oracle_id)
-        id, oracle_id, name, mana_cost, type_line, release_date, layout
+        id,
+        oracle_id,
+        name,
+        mana_cost,
+        type_line,
+        release_date,
+        layout
     FROM cards
     WHERE name ILIKE '%' || $1 || '%'
       AND lang = 'en'
       AND 'paper' = ANY(games)
+      AND layout != 'art_series'
     ORDER BY oracle_id, release_date DESC
 ) AS unique_cards
 ORDER BY name ASC
@@ -16,16 +23,22 @@ SELECT COUNT(DISTINCT oracle_id)
 FROM cards
 WHERE name ILIKE '%' || $1 || '%'
     AND lang = 'en'
-    AND 'paper' = ANY(games);
+    AND 'paper' = ANY(games)
+    AND layout != 'art_series';
 
 -- name: SearchCardsByNameList :many
 SELECT * FROM (
     SELECT DISTINCT ON (oracle_id)
-        oracle_id, printed_name, mana_cost, printed_type_line, layout
+        oracle_id,
+        printed_name,
+        mana_cost,
+        printed_type_line,
+        layout
     FROM cards
     WHERE printed_name ILIKE '%' || $1 || '%'
         AND lang = $2
         AND 'paper' = ANY(games)
+        AND layout != 'art_series'
     ORDER BY oracle_id, release_date DESC
 ) AS unique_cards
 ORDER BY printed_name ASC
@@ -36,7 +49,8 @@ SELECT COUNT(DISTINCT oracle_id)
 FROM cards
 WHERE printed_name ILIKE '%' || $1 || '%'
     AND lang = $2
-    AND 'paper' = ANY(games);
+    AND 'paper' = ANY(games)
+    AND layout != 'art_series';
 
 -- name: DoesLangExist :one
 SELECT name
@@ -60,20 +74,7 @@ ORDER BY release_date DESC
 LIMIT $3 OFFSET $4;
 
 -- name: SearchCardByOracleID :one
-SELECT id,
-    name,
-    printed_name,
-    layout,
-    mana_cost,
-    type_line,
-    printed_type_line,
-    oracle_text,
-    printed_text,
-    power,
-    toughness,
-    loyalty,
-    defense,
-    multifaced
+SELECT *
 FROM cards
 WHERE oracle_id = $1
     AND lang = $2
@@ -82,17 +83,7 @@ ORDER BY release_date DESC
 LIMIT 1;
 
 -- name: GetCardFaces :many
-SELECT name,
-    printed_name,
-    mana_cost,
-    type_line,
-    printed_type_line,
-    oracle_text,
-    printed_text,
-    power,
-    toughness,
-    loyalty,
-    defense
+SELECT *
 FROM card_faces
 WHERE card_id = $1;
 
@@ -102,6 +93,11 @@ FROM cards
 WHERE oracle_id = $1
     AND lang = $2
     AND 'paper' = ANY(games);
+
+-- name: GetCardByID :one
+SELECT *
+FROM cards
+WHERE id = $1;
 
 -- name: GetCardLegalties :one
 SELECT * FROM legalities WHERE card_id = $1;
