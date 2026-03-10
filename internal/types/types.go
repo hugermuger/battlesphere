@@ -1,10 +1,39 @@
 package types
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 )
+
+func (i CardResponseSearchByName) Title() string {
+	if i.ManaCost != nil && *i.ManaCost != "" {
+		return fmt.Sprintf("%v - %v", i.Name, *i.ManaCost)
+	} else {
+		return i.Name
+	}
+}
+func (i CardResponseSearchByName) Description() string {
+	if i.Layout != "normal" {
+		return fmt.Sprintf("%v (%v)", i.TypeLine, i.Layout)
+	} else {
+		return i.TypeLine
+	}
+}
+func (i CardResponseSearchByName) FilterValue() string { return i.Name }
+
+func (i CardResponseSearchByOracleID) Title() string {
+	if i.FlavorName != nil {
+		return fmt.Sprintf("%v (%v)", *i.FlavorName, i.Name)
+	} else {
+		return i.Name
+	}
+}
+func (i CardResponseSearchByOracleID) Description() string {
+	return fmt.Sprintf("%v %v (%v)", i.SetName, i.CollectorNumber, i.ReleasedAt.Format("2006"))
+}
+func (i CardResponseSearchByOracleID) FilterValue() string { return i.Name }
 
 type CardJSON struct {
 	ID              uuid.UUID    `json:"id"`
