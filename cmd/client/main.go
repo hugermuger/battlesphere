@@ -13,6 +13,7 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/google/uuid"
 	"github.com/hugermuger/battlesphere/internal/types"
 )
 
@@ -61,6 +62,12 @@ var tuiTabs = []TUITab{
 	{title: "Collection"},
 }
 
+var menuSearch = []string{
+	"name",
+	"oracle",
+	"cards",
+}
+
 var lang = []string{
 	"en",
 	"de",
@@ -68,19 +75,22 @@ var lang = []string{
 }
 
 type model struct {
-	searchInput     textinput.Model
-	activeTabIndex  int
-	winWidth        int
-	isTyping        bool
-	list            list.Model
-	focusInput      bool
-	focusList       bool
-	searching       bool
-	err             error
-	searchID        int
-	searchQuery     string
-	searchQueryLang int
-	selectedLang    int
+	searchInput        textinput.Model
+	activeTabIndex     int
+	winWidth           int
+	isTyping           bool
+	listSearchByName   list.Model
+	listSearchByOracle list.Model
+	focusInput         bool
+	focusList          bool
+	searching          bool
+	err                error
+	searchID           int
+	searchQuery        string
+	searchQueryLang    int
+	selectedLang       int
+	menuSearchID       int
+	oracleCardID       uuid.UUID
 }
 
 func initModel() model {
@@ -91,19 +101,27 @@ func initModel() model {
 	l := list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0)
 	l.SetShowTitle(false)
 	l.SetShowHelp(false)
+	l.DisableQuitKeybindings()
+
+	listOracle := list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0)
+	listOracle.SetShowTitle(false)
+	listOracle.SetShowHelp(false)
+	listOracle.DisableQuitKeybindings()
 
 	return model{
-		list:            l,
-		searchInput:     si,
-		activeTabIndex:  0,
-		winWidth:        200,
-		isTyping:        false,
-		focusInput:      false,
-		focusList:       false,
-		searching:       true,
-		searchQuery:     "",
-		searchQueryLang: len(lang),
-		selectedLang:    0,
+		listSearchByName:   l,
+		listSearchByOracle: listOracle,
+		searchInput:        si,
+		activeTabIndex:     0,
+		winWidth:           200,
+		isTyping:           false,
+		focusInput:         false,
+		focusList:          false,
+		searching:          true,
+		searchQuery:        "",
+		searchQueryLang:    len(lang),
+		selectedLang:       0,
+		menuSearchID:       0,
 	}
 }
 
@@ -117,7 +135,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.winWidth = msg.Width
-		m.list.SetSize(msg.Width, msg.Height-10)
+		m.listSearchByName.SetSize(msg.Width, msg.Height-10)
+		m.listSearchByOracle.SetSize(msg.Width, msg.Height-8)
 
 	case tea.KeyPressMsg:
 		if !m.focusInput && !m.focusList {
@@ -144,20 +163,50 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "Card Search":
 			switch msg.String() {
 			case "enter":
-				if !m.focusInput {
-					m.focusInput = true
-					m.searchInput.Focus()
-					return m, nil
-				} else if m.focusInput {
+				switch m.menuSearchID {
+				case 0:
+					if m.focusInput {
+						m.focusList = true
+						m.focusInput = false
+						m.searchInput.Blur()
+						return m, nil
+					} else if !m.focusInput && !m.focusList {
+						m.focusInput = true
+						m.focusList = false
+						m.searchInput.Focus()
+						return m, nil
+					} else if m.focusList {
+						selectedItem := m.listSearchByName.SelectedItem()
+						if selectedItem != nil {
+							card := selectedItem.(types.CardResponseSearchByName)
+							if card.OracleID != nil {
+								m.searching = true
+								m.menuSearchID = 1
+								m.oracleCardID = *card.OracleID
+								return m, m.fetchCardsByOracleID(card.OracleID.String())
+							}
+						}
+					}
+				case 1:
+					if !m.focusList {
+						m.focusList = true
+					}
+				}
+
+			case "down":
+				if m.focusInput {
 					m.focusList = true
 					m.focusInput = false
 					m.searchInput.Blur()
 					return m, nil
 				}
+
 			case "ctrl+c":
 				m.searchInput.Reset()
 				m.searchQuery = ""
-				m.list.SetItems([]list.Item{})
+				m.listSearchByName.SetItems([]list.Item{})
+				m.listSearchByOracle.SetItems([]list.Item{})
+				m.menuSearchID = 0
 				if m.focusList {
 					m.focusList = false
 					m.focusInput = true
@@ -178,28 +227,60 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.selectedLang > len(lang)-1 {
 					m.selectedLang = 0
 				}
+				if m.menuSearchID == 1 {
+					return m, tea.Batch(cmd, m.fetchCardsByOracleID(m.oracleCardID.String()))
+				}
+
+			case "backspace":
+				switch m.menuSearchID {
+				case 0:
+					if m.focusList {
+						m.focusInput = true
+						m.focusList = false
+						m.searchInput.Focus()
+						return m, nil
+					}
+				case 1:
+					m.menuSearchID = 0
+					m.selectedLang = m.searchQueryLang
+					return m, nil
+				}
 			}
 
 			if m.focusInput {
 				m.searchInput, cmd = m.searchInput.Update(msg)
 			} else if m.focusList {
-				m.list, cmd = m.list.Update(msg)
+				switch m.menuSearchID {
+				case 0:
+					m.listSearchByName, cmd = m.listSearchByName.Update(msg)
+					return m, nil
+				case 1:
+					m.listSearchByOracle, cmd = m.listSearchByOracle.Update(msg)
+					return m, nil
+				}
+
 			}
 
-			m.searchID++
-			return m, tea.Batch(cmd, m.debounceSearch(m.searchID, m.searchInput.Value(), m.selectedLang))
+			if m.menuSearchID == 0 {
+				if m.searchInput.Value() != m.searchQuery || m.searchQueryLang != m.selectedLang {
+					m.searchQuery = m.searchInput.Value()
+					m.searchQueryLang = m.selectedLang
+					m.searchID++
+					return m, tea.Batch(cmd, m.debounceSearch(m.searchID, m.searchInput.Value(), m.selectedLang))
+				}
+			}
+
+			return m, cmd
 		}
 
 	case debounceMsg:
 		switch tuiTabs[m.activeTabIndex].title {
 		case "Card Search":
-			if msg.id == m.searchID && msg.query != "" && (m.searchQuery != msg.query || m.searchQueryLang != msg.langID) {
+			if msg.id == m.searchID && msg.query != "" {
 				m.searching = true
-				m.searchQuery = msg.query
-				m.searchQueryLang = msg.langID
 				return m, m.fetchCardsByName(msg.query)
 			} else if msg.query == "" {
-				m.list.SetItems([]list.Item{})
+				m.listSearchByName.SetItems([]list.Item{})
 			}
 			return m, nil
 		}
@@ -208,8 +289,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch tuiTabs[m.activeTabIndex].title {
 		case "Card Search":
 			m.searching = false
-			m.list.Select(0)
-			m.list.SetItems(msg)
+			switch m.menuSearchID {
+			case 0:
+				m.listSearchByName.Select(0)
+				m.listSearchByName.SetItems(msg)
+			case 1:
+				m.listSearchByOracle.Select(0)
+				m.listSearchByOracle.SetItems(msg)
+			}
 			return m, nil
 		}
 
@@ -273,10 +360,19 @@ func searchView(m model) string {
 		Foreground(lipgloss.Color("241")).
 		Render(la)
 
-	if len(m.list.Items()) == 0 {
-		return lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, m.searchInput.View()) + "\n" + "\n" + lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, la)
+	v := ""
+
+	switch m.menuSearchID {
+	case 0:
+		if len(m.listSearchByName.Items()) == 0 {
+			v = lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, m.searchInput.View()) + "\n" + "\n" + lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, la)
+		} else {
+			v = lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, m.searchInput.View()) + "\n" + "\n" + m.listSearchByName.View() + "\n" + lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, la)
+		}
+	case 1:
+		v = m.listSearchByOracle.View() + "\n" + lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, la)
 	}
-	return lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, m.searchInput.View()) + "\n" + "\n" + m.list.View() + "\n" + lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, la)
+	return v
 }
 
 func tabs(m model) string {
@@ -308,7 +404,6 @@ func (m model) debounceSearch(id int, query string, langID int) tea.Cmd {
 
 func (m model) fetchCardsByName(query string) tea.Cmd {
 	return func() tea.Msg {
-		// Replace with your real API endpoint
 		endpoint := "http://localhost:8080/cards/search?name=" + url.QueryEscape(query) + "&limit=600" + "&lang=" + lang[m.selectedLang]
 		resp, err := http.Get(endpoint)
 		if err != nil {
@@ -325,10 +420,33 @@ func (m model) fetchCardsByName(query string) tea.Cmd {
 
 		var items []list.Item
 		for _, v := range data.Results {
-			// If your API results are pointers (*CardResponseSearchByName)
 			items = append(items, v)
 		}
 
+		return searchResultMsg(items)
+	}
+}
+
+func (m model) fetchCardsByOracleID(oracleID string) tea.Cmd {
+	return func() tea.Msg {
+		endpoint := "http://localhost:8080/cards/oracle/" + oracleID + "?&limit=600" + "&lang=" + lang[m.selectedLang]
+		resp, err := http.Get(endpoint)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+
+		var data struct {
+			Results []types.CardResponseSearchByOracleID `json:"results"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+			return err
+		}
+
+		var items []list.Item
+		for _, v := range data.Results {
+			items = append(items, v)
+		}
 		return searchResultMsg(items)
 	}
 }
