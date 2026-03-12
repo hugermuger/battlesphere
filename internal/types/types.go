@@ -240,6 +240,7 @@ type ResponseCard struct {
 	Rarity          string              `json:"rarity"`
 	Artist          *string             `json:"artist"`
 	EdhrecRank      *int32              `json:"edhrec_rank"`
+	Multifaced      bool                `json:"multifaced"`
 }
 
 type ResponseImages struct {

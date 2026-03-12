@@ -279,7 +279,7 @@ func (cfg *apiConfig) handlerCardsByOracleID(c *gin.Context) {
 		Toughness:     dbutils.FromNullString(oracleCard.Toughness),
 		Loyalty:       dbutils.FromNullString(oracleCard.Loyalty),
 		Defense:       dbutils.FromNullString(oracleCard.Defense),
-		Multifaced:    false,
+		Multifaced:    oracleCard.Multifaced,
 	}
 
 	multifaces := []database.CardFace{}
@@ -314,6 +314,7 @@ func (cfg *apiConfig) handlerCardsByOracleID(c *gin.Context) {
 				responseFaces[i].PrintedText = dbutils.FromNullString(face.PrintedText)
 			}
 		}
+		oracleCardJSON.CardFaces = &responseFaces
 	}
 
 	if lang != "en" {
@@ -463,6 +464,7 @@ func (cfg *apiConfig) handlerCardByID(c *gin.Context) {
 		Rarity:          card.Rarity,
 		Artist:          dbutils.FromNullString(card.Artist),
 		EdhrecRank:      dbutils.FromNullInt32(card.EdhrecRank),
+		Multifaced:      card.Multifaced,
 	}
 
 	multifaces := []database.CardFace{}
