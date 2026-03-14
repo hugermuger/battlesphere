@@ -379,6 +379,9 @@ func (cfg *apiConfig) handlerCardsByOracleID(c *gin.Context) {
 		}
 	}
 
+	oracleCardJSON.Rulings = rulingsJSON
+	oracleCardJSON.Legalities = legalitiesJSON
+
 	path := fmt.Sprintf("/cards/oracle/%v", idStr)
 	base, _ := url.Parse(path)
 
@@ -395,8 +398,6 @@ func (cfg *apiConfig) handlerCardsByOracleID(c *gin.Context) {
 		"number_results": numberResults,
 		"next_page":      base.String(),
 		"oracle_card":    oracleCardJSON,
-		"rulings":        rulingsJSON,
-		"legalities":     legalitiesJSON,
 		"results":        results,
 	})
 }

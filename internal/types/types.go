@@ -7,34 +7,6 @@ import (
 	"github.com/google/uuid"
 )
 
-func (i CardResponseSearchByName) Title() string {
-	if i.ManaCost != nil && *i.ManaCost != "" {
-		return fmt.Sprintf("%v - %v", i.Name, *i.ManaCost)
-	} else {
-		return i.Name
-	}
-}
-func (i CardResponseSearchByName) Description() string {
-	if i.Layout != "normal" {
-		return fmt.Sprintf("%v (%v)", i.TypeLine, i.Layout)
-	} else {
-		return i.TypeLine
-	}
-}
-func (i CardResponseSearchByName) FilterValue() string { return i.Name }
-
-func (i CardResponseSearchByOracleID) Title() string {
-	if i.FlavorName != nil {
-		return fmt.Sprintf("%v (%v)", *i.FlavorName, i.Name)
-	} else {
-		return i.Name
-	}
-}
-func (i CardResponseSearchByOracleID) Description() string {
-	return fmt.Sprintf("%v %v (%v)", i.SetName, i.CollectorNumber, i.ReleasedAt.Format("2006"))
-}
-func (i CardResponseSearchByOracleID) FilterValue() string { return i.Name }
-
 type CardJSON struct {
 	ID              uuid.UUID    `json:"id"`
 	OracleID        *uuid.UUID   `json:"oracle_id"`
@@ -159,6 +131,22 @@ type CardResponseSearchByName struct {
 	TypeLine string     `json:"type_line"`
 }
 
+func (i CardResponseSearchByName) Title() string {
+	if i.ManaCost != nil && *i.ManaCost != "" {
+		return fmt.Sprintf("%v - %v", i.Name, *i.ManaCost)
+	} else {
+		return i.Name
+	}
+}
+func (i CardResponseSearchByName) Description() string {
+	if i.Layout != "normal" {
+		return fmt.Sprintf("%v (%v)", i.TypeLine, i.Layout)
+	} else {
+		return i.TypeLine
+	}
+}
+func (i CardResponseSearchByName) FilterValue() string { return i.Name }
+
 type CardResponseSearchByOracleID struct {
 	ID              uuid.UUID `json:"id"`
 	Name            string    `json:"name"`
@@ -168,6 +156,18 @@ type CardResponseSearchByOracleID struct {
 	SetName         string    `json:"set_name"`
 	CollectorNumber string    `json:"collector_number"`
 }
+
+func (i CardResponseSearchByOracleID) Title() string {
+	if i.FlavorName != nil {
+		return fmt.Sprintf("%v (%v)", *i.FlavorName, i.Name)
+	} else {
+		return i.Name
+	}
+}
+func (i CardResponseSearchByOracleID) Description() string {
+	return fmt.Sprintf("%v %v (%v)", i.SetName, i.CollectorNumber, i.ReleasedAt.Format("2006"))
+}
+func (i CardResponseSearchByOracleID) FilterValue() string { return i.Name }
 
 type ResponseByOracleID struct {
 	Name          string                 `json:"name"`
@@ -185,6 +185,8 @@ type ResponseByOracleID struct {
 	Defense       *string                `json:"defense"`
 	CardFaces     *[]CardFacesByOracleID `json:"card_faces"`
 	Multifaced    bool                   `json:"multifaced"`
+	Legalities    Legalities             `json:"legalities"`
+	Rulings       []ResponseRulings      `json:"rulings"`
 }
 
 type CardFacesByOracleID struct {

@@ -7,7 +7,6 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/hugermuger/battlesphere/internal/types"
 )
 
 func (m model) View() tea.View {
@@ -49,6 +48,25 @@ func stdView(m model) string {
 }
 
 func searchView(m model) string {
+	if m.focusList {
+		m.listSearchByName.SetDelegate(m.selectedListDelegate)
+		m.listSearchByOracle.SetDelegate(m.selectedListDelegate)
+	} else {
+		m.listSearchByName.SetDelegate(m.unselectedListDelegate)
+		m.listSearchByOracle.SetDelegate(m.unselectedListDelegate)
+	}
+
+	rulings := "\nRulings"
+	if m.focusViewport {
+		rulings = (lipgloss.NewStyle().
+			Foreground(lipgloss.Color("117")).
+			Render(rulings))
+	} else {
+		rulings = (lipgloss.NewStyle().
+			Foreground(lipgloss.Color("241")).
+			Render(rulings))
+	}
+
 	la := ""
 	for i, l := range lang {
 		if i == m.selectedLang {
@@ -95,50 +113,35 @@ func searchView(m model) string {
 		buffer = fmt.Sprintf("%v\n\nCmc: %v", buffer, m.oracleCard.Cmc)
 		if len(m.oracleCard.ColorIdentity) > 0 {
 			buffer += ", Color Identity: "
-			for _, c := range m.oracleCard.ColorIdentity {
-				buffer += fmt.Sprintf("{%v}", c)
+			for i := len(m.oracleCard.ColorIdentity) - 1; i >= 0; i-- {
+				buffer += fmt.Sprintf("{%v}", m.oracleCard.ColorIdentity[i])
 			}
 		}
 		buffer = lipgloss.Wrap(buffer, m.winWidth-15, "\n")
 		buffer = lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, buffer)
 		card := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Width(m.winWidth).Render(buffer)
-		legalities := renderLegalities(m.oracleCardLegalities, m)
+		legalities := renderLegalities(m)
 		if m.oracleCard.Multifaced {
-			bufferStruct := make([]string, len(*m.oracleCard.CardFaces))
-			for i, f := range *m.oracleCard.CardFaces {
-				width := m.winWidth / len(*m.oracleCard.CardFaces)
-				bufferStruct[i] += f.ManaCost + "\n" + f.Name
-				if f.TypeLine != nil {
-					bufferStruct[i] += "\n" + *f.TypeLine
-				}
-				if f.Power != nil && f.Toughness != nil {
-					bufferStruct[i] += "\n" + *f.Power + "/" + *f.Toughness
-				} else if f.Defense != nil {
-					bufferStruct[i] += "\n" + *f.Defense
-				} else if f.Loyalty != nil {
-					bufferStruct[i] += "\n" + *f.Loyalty
-				} else {
-					bufferStruct[i] += "\n"
-				}
-				if f.OracleText != nil {
-					bufferStruct[i] += "\n" + "\n" + *f.OracleText
-				}
-				if f.PrintedText != nil {
-					bufferStruct[i] += "\n" + "\n" + *f.PrintedText
-				}
-				if f.Cmc != nil {
-					bufferStruct[i] += fmt.Sprintf("Cmc: %v", *f.Cmc)
-				}
-				bufferStruct[i] = lipgloss.Wrap(bufferStruct[i], width-10, "\n")
-				bufferStruct[i] = lipgloss.PlaceHorizontal(width, lipgloss.Center, bufferStruct[i])
-				bufferStruct[i] = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Width(width).Render(bufferStruct[i])
-			}
-			faces := lipgloss.JoinHorizontal(lipgloss.Top, bufferStruct...)
-			m.listSearchByOracle.SetHeight(m.listSearchByOracle.Height() - (lipgloss.Height(buffer) + lipgloss.Height(faces) + lipgloss.Height(legalities)))
-			v = card + "\n" + legalities + "\n" + faces + m.listSearchByOracle.View() + "\n" + lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, la)
+			faces := renderMultifaces(m)
+			height := m.listSearchByOracle.Height() - (lipgloss.Height(buffer) + lipgloss.Height(faces) + lipgloss.Height(legalities))
+			m.rulingViewport.SetHeight(height - 5)
+			m.listSearchByOracle.SetHeight(height - 2)
+			m.searchViewport.SetHeight(height - 2)
+			m.rulingViewport.SetWidth(m.winWidth / 2)
+			m.searchViewport.SetWidth(m.winWidth / 2)
+			m.searchViewport.SetContent(m.listSearchByOracle.View())
+			listView := lipgloss.JoinHorizontal(lipgloss.Top, m.searchViewport.View(), rulings+"\n\n"+m.rulingViewport.View())
+			v = card + "\n" + legalities + "\n" + faces + "\n" + listView + "\n\n" + lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, la)
 		} else {
-			m.listSearchByOracle.SetHeight(m.listSearchByOracle.Height() - (lipgloss.Height(buffer) + lipgloss.Height(legalities)))
-			v = card + "\n" + legalities + m.listSearchByOracle.View() + "\n" + lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, la)
+			height := m.listSearchByOracle.Height() - (lipgloss.Height(buffer) + lipgloss.Height(legalities))
+			m.rulingViewport.SetHeight(height - 5)
+			m.listSearchByOracle.SetHeight(height - 2)
+			m.searchViewport.SetHeight(height - 2)
+			m.rulingViewport.SetWidth(m.winWidth / 2)
+			m.searchViewport.SetWidth(m.winWidth / 2)
+			m.searchViewport.SetContent(m.listSearchByOracle.View())
+			listView := lipgloss.JoinHorizontal(lipgloss.Top, m.searchViewport.View(), rulings+"\n\n"+m.rulingViewport.View())
+			v = card + "\n" + legalities + "\n" + listView + "\n\n" + lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, la)
 		}
 	}
 	return v
@@ -164,9 +167,9 @@ func tabs(m model) string {
 	return lipgloss.JoinHorizontal(lipgloss.Bottom, tabs, spacer)
 }
 
-func renderLegalities(l types.Legalities, m model) string {
+func renderLegalities(m model) string {
 	legalities := ""
-
+	l := m.oracleCard.Legalities
 	v := reflect.ValueOf(l)
 	t := reflect.TypeOf(l)
 
@@ -198,4 +201,46 @@ func renderLegalities(l types.Legalities, m model) string {
 	legalities = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Width(m.winWidth).Render(legalities)
 
 	return legalities
+}
+
+func renderRulings(m model) string {
+	rulings := ""
+	for i := len(m.oracleCard.Rulings) - 1; i >= 0; i-- {
+		ruleText := lipgloss.Wrap(m.oracleCard.Rulings[i].Comment, (m.winWidth/2)-5, "")
+		rulings = fmt.Sprintf("%v%v\n%v\n\n", rulings, m.oracleCard.Rulings[i].PublishedAt.Format("02.01.2006"), ruleText)
+	}
+	return rulings
+}
+
+func renderMultifaces(m model) string {
+	bufferStruct := make([]string, len(*m.oracleCard.CardFaces))
+	for i, f := range *m.oracleCard.CardFaces {
+		width := m.winWidth / len(*m.oracleCard.CardFaces)
+		bufferStruct[i] += f.ManaCost + "\n" + f.Name
+		if f.TypeLine != nil {
+			bufferStruct[i] += "\n" + *f.TypeLine
+		}
+		if f.Power != nil && f.Toughness != nil {
+			bufferStruct[i] += "\n" + *f.Power + "/" + *f.Toughness
+		} else if f.Defense != nil {
+			bufferStruct[i] += "\n" + *f.Defense
+		} else if f.Loyalty != nil {
+			bufferStruct[i] += "\n" + *f.Loyalty
+		} else {
+			bufferStruct[i] += "\n"
+		}
+		if f.OracleText != nil {
+			bufferStruct[i] += "\n" + "\n" + *f.OracleText
+		}
+		if f.PrintedText != nil {
+			bufferStruct[i] += "\n" + "\n" + *f.PrintedText
+		}
+		if f.Cmc != nil {
+			bufferStruct[i] += fmt.Sprintf("Cmc: %v", *f.Cmc)
+		}
+		bufferStruct[i] = lipgloss.Wrap(bufferStruct[i], width-10, "\n")
+		bufferStruct[i] = lipgloss.PlaceHorizontal(width, lipgloss.Center, bufferStruct[i])
+		bufferStruct[i] = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Width(width).Render(bufferStruct[i])
+	}
+	return lipgloss.JoinHorizontal(lipgloss.Top, bufferStruct...)
 }
