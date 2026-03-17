@@ -280,6 +280,8 @@ func (cfg *apiConfig) handlerCardsByOracleID(c *gin.Context) {
 		Loyalty:       dbutils.FromNullString(oracleCard.Loyalty),
 		Defense:       dbutils.FromNullString(oracleCard.Defense),
 		Multifaced:    oracleCard.Multifaced,
+		GameChanger:   dbutils.FromNullBool(oracleCard.GameChanger),
+		EdhrecRank:    dbutils.FromNullInt32(oracleCard.EdhrecRank),
 	}
 
 	multifaces := []database.CardFace{}
@@ -511,7 +513,7 @@ func (cfg *apiConfig) handlerCardByID(c *gin.Context) {
 			}
 		}
 
-		cardJSON.CardFaces = responseFaces
+		cardJSON.CardFaces = &responseFaces
 	}
 
 	if card.Lang != "en" {

@@ -187,6 +187,8 @@ type ResponseByOracleID struct {
 	Multifaced    bool                   `json:"multifaced"`
 	Legalities    Legalities             `json:"legalities"`
 	Rulings       []ResponseRulings      `json:"rulings"`
+	GameChanger   *bool                  `json:"game_changer"`
+	EdhrecRank    *int32                 `json:"edhrec_rank"`
 }
 
 type CardFacesByOracleID struct {
@@ -211,38 +213,38 @@ type ResponseRulings struct {
 }
 
 type ResponseCard struct {
-	ID              uuid.UUID           `json:"id"`
-	OracleID        *uuid.UUID          `json:"oracle_id"`
-	Name            string              `json:"name"`
-	FlavorName      *string             `json:"flavor_name"`
-	Lang            string              `json:"lang"`
-	ReleasedAt      time.Time           `json:"released_at"`
-	Layout          string              `json:"layout"`
-	ImageUris       ResponseImages      `json:"image_uris"`
-	ManaCost        *string             `json:"mana_cost"`
-	Cmc             float64             `json:"cmc"`
-	TypeLine        string              `json:"type_line"`
-	OracleText      *string             `json:"oracle_text"`
-	PrintedText     *string             `json:"printed_text"`
-	Power           *string             `json:"power"`
-	Toughness       *string             `json:"toughness"`
-	Loyalty         *string             `json:"loyalty"`
-	Colors          *[]string           `json:"colors"`
-	ColorIdentity   []string            `json:"color_identity"`
-	Defense         *string             `json:"defense"`
-	Keywords        []string            `json:"keywords"`
-	FlavorText      *string             `json:"flavor_text"`
-	CardFaces       []ResponseCardFaces `json:"card_faces"`
-	Legalities      Legalities          `json:"legalities"`
-	GameChanger     *bool               `json:"game_changer"`
-	Finishes        []string            `json:"finishes"`
-	Set             string              `json:"set"`
-	SetName         string              `json:"set_name"`
-	CollectorNumber string              `json:"collector_number"`
-	Rarity          string              `json:"rarity"`
-	Artist          *string             `json:"artist"`
-	EdhrecRank      *int32              `json:"edhrec_rank"`
-	Multifaced      bool                `json:"multifaced"`
+	ID              uuid.UUID            `json:"id"`
+	OracleID        *uuid.UUID           `json:"oracle_id"`
+	Name            string               `json:"name"`
+	FlavorName      *string              `json:"flavor_name"`
+	Lang            string               `json:"lang"`
+	ReleasedAt      time.Time            `json:"released_at"`
+	Layout          string               `json:"layout"`
+	ImageUris       ResponseImages       `json:"image_uris"`
+	ManaCost        *string              `json:"mana_cost"`
+	Cmc             float64              `json:"cmc"`
+	TypeLine        string               `json:"type_line"`
+	OracleText      *string              `json:"oracle_text"`
+	PrintedText     *string              `json:"printed_text"`
+	Power           *string              `json:"power"`
+	Toughness       *string              `json:"toughness"`
+	Loyalty         *string              `json:"loyalty"`
+	Colors          *[]string            `json:"colors"`
+	ColorIdentity   []string             `json:"color_identity"`
+	Defense         *string              `json:"defense"`
+	Keywords        []string             `json:"keywords"`
+	FlavorText      *string              `json:"flavor_text"`
+	CardFaces       *[]ResponseCardFaces `json:"card_faces"`
+	Legalities      Legalities           `json:"legalities"`
+	GameChanger     *bool                `json:"game_changer"`
+	Finishes        []string             `json:"finishes"`
+	Set             string               `json:"set"`
+	SetName         string               `json:"set_name"`
+	CollectorNumber string               `json:"collector_number"`
+	Rarity          string               `json:"rarity"`
+	Artist          *string              `json:"artist"`
+	EdhrecRank      *int32               `json:"edhrec_rank"`
+	Multifaced      bool                 `json:"multifaced"`
 }
 
 type ResponseImages struct {

@@ -105,10 +105,10 @@ func searchView(m model) string {
 			buffer += "\n" + *m.oracleCard.Loyalty
 		}
 		if m.oracleCard.OracleText != nil {
-			buffer += "\n" + "\n" + *m.oracleCard.OracleText
+			buffer += "\n\n" + *m.oracleCard.OracleText
 		}
 		if m.oracleCard.PrintedText != nil {
-			buffer += "\n" + "\n" + *m.oracleCard.PrintedText
+			buffer += "\n\n" + *m.oracleCard.PrintedText
 		}
 		buffer = fmt.Sprintf("%v\n\nCmc: %v", buffer, m.oracleCard.Cmc)
 		if len(m.oracleCard.ColorIdentity) > 0 {
@@ -117,29 +117,34 @@ func searchView(m model) string {
 				buffer += fmt.Sprintf("{%v}", m.oracleCard.ColorIdentity[i])
 			}
 		}
+		if m.oracleCard.EdhrecRank != nil {
+			buffer = fmt.Sprintf("%v\n\nEDHREC Rank: %v", buffer, *m.oracleCard.EdhrecRank)
+		}
+		if m.oracleCard.GameChanger != nil {
+			if *m.oracleCard.GameChanger {
+				buffer += "\n\n" + lipgloss.NewStyle().Foreground(lipgloss.Color("220")).Render("GAMECHANGER")
+			}
+		}
 		buffer = lipgloss.Wrap(buffer, m.winWidth-15, "\n")
 		buffer = lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, buffer)
 		card := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Width(m.winWidth).Render(buffer)
 		legalities := renderLegalities(m)
+		m.rulingViewport.SetWidth(m.winWidth / 2)
+		m.searchViewport.SetWidth(m.winWidth / 2)
+		m.searchViewport.SetContent(m.listSearchByOracle.View())
 		if m.oracleCard.Multifaced {
-			faces := renderMultifaces(m)
-			height := m.listSearchByOracle.Height() - (lipgloss.Height(buffer) + lipgloss.Height(faces) + lipgloss.Height(legalities))
+			faces := renderMultifacesOracle(m)
+			height := m.listSearchByName.Height() - (lipgloss.Height(buffer) + lipgloss.Height(faces) + lipgloss.Height(legalities))
 			m.rulingViewport.SetHeight(height - 5)
 			m.listSearchByOracle.SetHeight(height - 2)
 			m.searchViewport.SetHeight(height - 2)
-			m.rulingViewport.SetWidth(m.winWidth / 2)
-			m.searchViewport.SetWidth(m.winWidth / 2)
-			m.searchViewport.SetContent(m.listSearchByOracle.View())
 			listView := lipgloss.JoinHorizontal(lipgloss.Top, m.searchViewport.View(), rulings+"\n\n"+m.rulingViewport.View())
 			v = card + "\n" + legalities + "\n" + faces + "\n" + listView + "\n\n" + lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, la)
 		} else {
-			height := m.listSearchByOracle.Height() - (lipgloss.Height(buffer) + lipgloss.Height(legalities))
+			height := m.listSearchByName.Height() - (lipgloss.Height(buffer) + lipgloss.Height(legalities))
 			m.rulingViewport.SetHeight(height - 5)
 			m.listSearchByOracle.SetHeight(height - 2)
 			m.searchViewport.SetHeight(height - 2)
-			m.rulingViewport.SetWidth(m.winWidth / 2)
-			m.searchViewport.SetWidth(m.winWidth / 2)
-			m.searchViewport.SetContent(m.listSearchByOracle.View())
 			listView := lipgloss.JoinHorizontal(lipgloss.Top, m.searchViewport.View(), rulings+"\n\n"+m.rulingViewport.View())
 			v = card + "\n" + legalities + "\n" + listView + "\n\n" + lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, la)
 		}
@@ -212,7 +217,7 @@ func renderRulings(m model) string {
 	return rulings
 }
 
-func renderMultifaces(m model) string {
+func renderMultifacesOracle(m model) string {
 	bufferStruct := make([]string, len(*m.oracleCard.CardFaces))
 	for i, f := range *m.oracleCard.CardFaces {
 		width := m.winWidth / len(*m.oracleCard.CardFaces)

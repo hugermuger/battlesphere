@@ -68,24 +68,3 @@ func (m model) fetchCardsByOracleID(oracleID string) tea.Cmd {
 		return oracleSearchResultMsg{list: items, oracleCard: data.OracleCard, legalities: data.Legalities}
 	}
 }
-
-func (m model) fetchCardByID(cardID string) tea.Cmd {
-	return func() tea.Msg {
-		endpoint := "http://localhost:8080/cards/" + cardID
-		resp, err := http.Get(endpoint)
-		if err != nil {
-			return err
-		}
-		defer resp.Body.Close()
-
-		var data struct {
-			Card    types.ResponseCard    `json:"card"`
-			Rulings types.ResponseRulings `json:"rulings"`
-		}
-		if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
-			return err
-		}
-
-		return cardSearchResultMsg{card: data.Card, rulings: data.Rulings}
-	}
-}

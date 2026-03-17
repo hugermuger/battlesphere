@@ -26,11 +26,6 @@ type oracleSearchResultMsg struct {
 	legalities types.Legalities
 }
 
-type cardSearchResultMsg struct {
-	card    types.ResponseCard
-	rulings types.ResponseRulings
-}
-
 var tabBorder = lipgloss.Border{
 	Top:         "─",
 	Bottom:      "─",
@@ -71,13 +66,20 @@ var tuiTabs = []TUITab{
 var menuSearch = []string{
 	"name",
 	"oracle",
-	"cards",
 }
 
 var lang = []string{
 	"en",
 	"de",
 	"fr",
+	"es",
+	"it",
+	"pt",
+	"ja",
+	"ko",
+	"ru",
+	"zhs",
+	"zht",
 }
 
 type model struct {
@@ -120,12 +122,13 @@ func initModel() model {
 		BorderForeground(lipgloss.Color("208"))
 
 	ud := list.NewDefaultDelegate()
+	col := ud.Styles.NormalDesc.GetForeground()
 	ud.Styles.SelectedTitle = ud.Styles.SelectedTitle.
 		Foreground(lipgloss.Color("252")).
-		BorderForeground(lipgloss.Color("240"))
+		BorderForeground(col)
 	ud.Styles.SelectedDesc = ud.Styles.SelectedDesc.
-		Foreground(lipgloss.Color("240")).
-		BorderForeground(lipgloss.Color("240"))
+		Foreground(col).
+		BorderForeground(col)
 
 	l := list.New([]list.Item{}, ud, 0, 0)
 	l.SetShowTitle(false)
@@ -133,8 +136,8 @@ func initModel() model {
 	l.DisableQuitKeybindings()
 	l.SetStatusBarItemName("card", "cards")
 
-	vp := viewport.New()
-	vp.SetWidth(30)
+	vpr := viewport.New()
+	vpr.SetWidth(30)
 
 	vps := viewport.New()
 	vps.SetWidth(30)
@@ -149,7 +152,7 @@ func initModel() model {
 		listSearchByName:       l,
 		listSearchByOracle:     listOracle,
 		searchInput:            si,
-		rulingViewport:         vp,
+		rulingViewport:         vpr,
 		searchViewport:         vps,
 		activeTabIndex:         0,
 		winWidth:               200,

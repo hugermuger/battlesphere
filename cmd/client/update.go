@@ -65,6 +65,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 							card := selectedItem.(types.CardResponseSearchByName)
 							if card.OracleID != nil {
 								m.searching = true
+								m.rulingViewport.GotoTop()
 								m.menuSearchID = 1
 								m.oracleCardID = *card.OracleID
 								return m, m.fetchCardsByOracleID(card.OracleID.String())
@@ -80,6 +81,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			case "right":
 				switch m.menuSearchID {
+				case 0:
+					m.listSearchByName, cmd = m.listSearchByName.Update(msg)
+					return m, nil
 				case 1:
 					if m.focusList {
 						m.focusList = false
@@ -89,6 +93,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			case "left":
 				switch m.menuSearchID {
+				case 0:
+					m.listSearchByName, cmd = m.listSearchByName.Update(msg)
+					return m, nil
 				case 1:
 					if m.focusViewport {
 						m.focusList = true
