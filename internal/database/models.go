@@ -129,3 +129,12 @@ type SyncState struct {
 	Key      string
 	LastSync time.Time
 }
+
+type User struct {
+	ID             uuid.UUID
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+	Email          string
+	UserName       string
+	HashedPassword string
+}

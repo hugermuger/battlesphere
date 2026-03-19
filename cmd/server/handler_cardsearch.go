@@ -48,10 +48,10 @@ func (cfg *apiConfig) handlerSearchCards(c *gin.Context) {
 		return
 	}
 
-	var numberResults int64
+	var totalResults int64
 
 	if lang == "en" {
-		numberResults, err = cfg.db.CountCardsByNameListEng(c.Request.Context(), dbutils.ToNullString(&name))
+		totalResults, err = cfg.db.CountCardsByNameListEng(c.Request.Context(), dbutils.ToNullString(&name))
 		if err != nil {
 			c.Error(err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
@@ -63,7 +63,7 @@ func (cfg *apiConfig) handlerSearchCards(c *gin.Context) {
 			Lang:    lang,
 		}
 
-		numberResults, err = cfg.db.CountCardsByNameList(c.Request.Context(), paramNumber)
+		totalResults, err = cfg.db.CountCardsByNameList(c.Request.Context(), paramNumber)
 		if err != nil {
 			c.Error(err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
@@ -71,19 +71,19 @@ func (cfg *apiConfig) handlerSearchCards(c *gin.Context) {
 		}
 	}
 
-	numberPages := calculatePages(numberResults, limit)
+	totalPages := calculatePages(totalResults, limit)
 
-	if page > numberPages {
-		if numberPages == 0 {
+	if page > totalPages {
+		if totalPages == 0 {
 			page = 1
 		} else {
-			page = numberPages
+			page = totalPages
 		}
 	}
 
 	offset := (page - 1) * limit
 
-	results := []types.CardResponseSearchByName{}
+	results := []types.CardSearchItem{}
 
 	if lang == "en" {
 		cardArgs := database.SearchCardsByNameListEngParams{
@@ -99,10 +99,10 @@ func (cfg *apiConfig) handlerSearchCards(c *gin.Context) {
 			return
 		}
 
-		resultsBuffer := make([]types.CardResponseSearchByName, len(cards))
+		resultsBuffer := make([]types.CardSearchItem, len(cards))
 		for i, card := range cards {
-			resultsBuffer[i] = types.CardResponseSearchByName{
-				OracleID: dbutils.ToUUIDPtr(card.OracleID),
+			resultsBuffer[i] = types.CardSearchItem{
+				OracleID: dbutils.FromNullUUID(card.OracleID),
 				Name:     card.Name,
 				Layout:   card.Layout,
 				ManaCost: dbutils.FromNullString(card.ManaCost),
@@ -116,6 +116,7 @@ func (cfg *apiConfig) handlerSearchCards(c *gin.Context) {
 			Column1: dbutils.ToNullString(&name),
 			Lang:    lang,
 			Limit:   int32(limit),
+			Offset:  int32(offset),
 		}
 
 		cards, err := cfg.db.SearchCardsByNameList(c.Request.Context(), cardArgs)
@@ -125,10 +126,10 @@ func (cfg *apiConfig) handlerSearchCards(c *gin.Context) {
 			return
 		}
 
-		resultsBuffer := make([]types.CardResponseSearchByName, len(cards))
+		resultsBuffer := make([]types.CardSearchItem, len(cards))
 		for i, card := range cards {
-			resultsBuffer[i] = types.CardResponseSearchByName{
-				OracleID: dbutils.ToUUIDPtr(card.OracleID),
+			resultsBuffer[i] = types.CardSearchItem{
+				OracleID: dbutils.FromNullUUID(card.OracleID),
 				Name:     card.PrintedName.String,
 				Layout:   card.Layout,
 				ManaCost: dbutils.FromNullString(card.ManaCost),
@@ -139,8 +140,8 @@ func (cfg *apiConfig) handlerSearchCards(c *gin.Context) {
 		results = resultsBuffer
 	}
 
-	next_page := ""
-	if numberPages > 1 && page < numberPages {
+	nextPage := ""
+	if totalPages > 1 && page < totalPages {
 		base, _ := url.Parse("/cards/search")
 
 		params := url.Values{}
@@ -150,15 +151,15 @@ func (cfg *apiConfig) handlerSearchCards(c *gin.Context) {
 		params.Add("page", fmt.Sprintf("%d", page+1))
 
 		base.RawQuery = params.Encode()
-		next_page = base.String()
+		nextPage = base.String()
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"page":           page,
-		"number_pages":   numberPages,
+		"number_pages":   totalPages,
 		"results":        results,
-		"number_results": numberResults,
-		"next_page":      next_page,
+		"number_results": totalResults,
+		"next_page":      nextPage,
 	})
 }
 
@@ -178,10 +179,10 @@ func (cfg *apiConfig) handlerRulings(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
 		return
 	}
-	rulingsJSON := make([]types.ResponseRulings, len(rules))
+	rulingsJSON := make([]types.Ruling, len(rules))
 
 	for i, rule := range rules {
-		rulingsJSON[i] = types.ResponseRulings{
+		rulingsJSON[i] = types.Ruling{
 			OracleID:    rule.OracleID,
 			Source:      dbutils.FromNullString(rule.Source),
 			PublishedAt: rule.PublishedAt,
@@ -232,20 +233,20 @@ func (cfg *apiConfig) handlerCardsByOracleID(c *gin.Context) {
 		Lang:     lang,
 	}
 
-	numberResults, err := cfg.db.CountCardsByOracleIDList(c.Request.Context(), numberParams)
+	totalResults, err := cfg.db.CountCardsByOracleIDList(c.Request.Context(), numberParams)
 	if err != nil {
 		c.Error(err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
 		return
 	}
 
-	numberPages := calculatePages(numberResults, limit)
+	totalPages := calculatePages(totalResults, limit)
 
-	if page > numberPages {
-		if numberPages == 0 {
+	if page > totalPages {
+		if totalPages == 0 {
 			page = 1
 		} else {
-			page = numberPages
+			page = totalPages
 		}
 	}
 
@@ -266,7 +267,7 @@ func (cfg *apiConfig) handlerCardsByOracleID(c *gin.Context) {
 		return
 	}
 
-	oracleCardJSON := types.ResponseByOracleID{
+	oracleCardJSON := types.OracleDetail{
 		Name:          oracleCard.Name,
 		Layout:        oracleCard.Layout,
 		Cmc:           oracleCard.Cmc,
@@ -294,10 +295,10 @@ func (cfg *apiConfig) handlerCardsByOracleID(c *gin.Context) {
 			return
 		}
 
-		responseFaces := make([]types.CardFacesByOracleID, len(multifaces))
+		responseFaces := make([]types.CardFace, len(multifaces))
 
 		for i, face := range multifaces {
-			responseFaces[i] = types.CardFacesByOracleID{
+			responseFaces[i] = types.CardFace{
 				Name:       face.Name,
 				ManaCost:   face.ManaCost,
 				Cmc:        dbutils.FromNullFloat64(face.Cmc),
@@ -339,10 +340,10 @@ func (cfg *apiConfig) handlerCardsByOracleID(c *gin.Context) {
 		return
 	}
 
-	results := make([]types.CardResponseSearchByOracleID, len(cards))
+	results := make([]types.OracleSearchItem, len(cards))
 
 	for i, card := range cards {
-		results[i] = types.CardResponseSearchByOracleID{
+		results[i] = types.OracleSearchItem{
 			ID:              card.ID,
 			Name:            card.Name,
 			FlavorName:      dbutils.FromNullString(card.FlavorName),
@@ -370,10 +371,10 @@ func (cfg *apiConfig) handlerCardsByOracleID(c *gin.Context) {
 		return
 	}
 
-	rulingsJSON := make([]types.ResponseRulings, len(rulings))
+	rulingsJSON := make([]types.Ruling, len(rulings))
 
 	for i, rule := range rulings {
-		rulingsJSON[i] = types.ResponseRulings{
+		rulingsJSON[i] = types.Ruling{
 			OracleID:    rule.OracleID,
 			Source:      dbutils.FromNullString(rule.Source),
 			PublishedAt: rule.PublishedAt,
@@ -384,21 +385,23 @@ func (cfg *apiConfig) handlerCardsByOracleID(c *gin.Context) {
 	oracleCardJSON.Rulings = rulingsJSON
 	oracleCardJSON.Legalities = legalitiesJSON
 
-	path := fmt.Sprintf("/cards/oracle/%v", idStr)
-	base, _ := url.Parse(path)
-
-	params := url.Values{}
-	params.Add("limit", fmt.Sprintf("%d", limit))
-	params.Add("lang", lang)
-	params.Add("page", fmt.Sprintf("%d", page+1))
-
-	base.RawQuery = params.Encode()
+	nextPage := ""
+	if totalPages > 1 && page < totalPages {
+		path := fmt.Sprintf("/cards/oracle/%v", idStr)
+		base, _ := url.Parse(path)
+		params := url.Values{}
+		params.Add("limit", fmt.Sprintf("%d", limit))
+		params.Add("lang", lang)
+		params.Add("page", fmt.Sprintf("%d", page+1))
+		base.RawQuery = params.Encode()
+		nextPage = base.String()
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"page":           page,
-		"number_pages":   numberPages,
-		"number_results": numberResults,
-		"next_page":      base.String(),
+		"number_pages":   totalPages,
+		"number_results": totalResults,
+		"next_page":      nextPage,
 		"oracle_card":    oracleCardJSON,
 		"results":        results,
 	})
@@ -431,20 +434,20 @@ func (cfg *apiConfig) handlerCardByID(c *gin.Context) {
 		return
 	}
 
-	cardJSON := types.ResponseCard{
+	cardJSON := types.CardDetail{
 		ID:         card.ID,
-		OracleID:   dbutils.ToUUIDPtr(card.OracleID),
+		OracleID:   dbutils.FromNullUUID(card.OracleID),
 		Name:       card.Name,
 		FlavorName: dbutils.FromNullString(card.FlavorName),
 		Lang:       card.Lang,
 		ReleasedAt: card.ReleaseDate,
 		Layout:     card.Layout,
-		ImageUris: types.ResponseImages{
-			ImageNormal: dbutils.FromNullString(card.Image),
-			ImagePNG:    dbutils.FromNullString(card.ImagePng),
-			ImageLarge:  dbutils.FromNullString(card.ImageLarge),
-			ImageSmall:  dbutils.FromNullString(card.ImageSmall),
-			ImageCrop:   dbutils.FromNullString(card.ImageCrop),
+		Images: types.Images{
+			Normal: dbutils.FromNullString(card.Image),
+			PNG:    dbutils.FromNullString(card.ImagePng),
+			Large:  dbutils.FromNullString(card.ImageLarge),
+			Small:  dbutils.FromNullString(card.ImageSmall),
+			Crop:   dbutils.FromNullString(card.ImageCrop),
 		},
 		ManaCost:        dbutils.FromNullString(card.ManaCost),
 		Cmc:             card.Cmc,
@@ -480,10 +483,10 @@ func (cfg *apiConfig) handlerCardByID(c *gin.Context) {
 			return
 		}
 
-		responseFaces := make([]types.ResponseCardFaces, len(multifaces))
+		responseFaces := make([]types.CardFace, len(multifaces))
 
 		for i, face := range multifaces {
-			responseFaces[i] = types.ResponseCardFaces{
+			responseFaces[i] = types.CardFace{
 				Name:       face.Name,
 				ManaCost:   face.ManaCost,
 				Cmc:        dbutils.FromNullFloat64(face.Cmc),
@@ -497,12 +500,12 @@ func (cfg *apiConfig) handlerCardByID(c *gin.Context) {
 				FlavorText: dbutils.FromNullString(face.FlavorText),
 				Artist:     dbutils.FromNullString(face.Artist),
 				Layout:     dbutils.FromNullString(face.Layout),
-				ImageUris: types.ResponseImages{
-					ImageNormal: dbutils.FromNullString(card.Image),
-					ImagePNG:    dbutils.FromNullString(card.ImagePng),
-					ImageLarge:  dbutils.FromNullString(card.ImageLarge),
-					ImageSmall:  dbutils.FromNullString(card.ImageSmall),
-					ImageCrop:   dbutils.FromNullString(card.ImageCrop),
+				Images: &types.Images{
+					Normal: dbutils.FromNullString(face.Image),
+					PNG:    dbutils.FromNullString(face.ImagePng),
+					Large:  dbutils.FromNullString(face.ImageLarge),
+					Small:  dbutils.FromNullString(face.ImageSmall),
+					Crop:   dbutils.FromNullString(face.ImageCrop),
 				},
 			}
 
@@ -529,10 +532,10 @@ func (cfg *apiConfig) handlerCardByID(c *gin.Context) {
 		return
 	}
 
-	rulingsJSON := make([]types.ResponseRulings, len(rulings))
+	rulingsJSON := make([]types.Ruling, len(rulings))
 
 	for i, rule := range rulings {
-		rulingsJSON[i] = types.ResponseRulings{
+		rulingsJSON[i] = types.Ruling{
 			OracleID:    rule.OracleID,
 			Source:      dbutils.FromNullString(rule.Source),
 			PublishedAt: rule.PublishedAt,

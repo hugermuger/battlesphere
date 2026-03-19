@@ -62,7 +62,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					} else if m.focusList {
 						selectedItem := m.listSearchByName.SelectedItem()
 						if selectedItem != nil {
-							card := selectedItem.(types.CardResponseSearchByName)
+							card := selectedItem.(types.CardSearchItem)
 							if card.OracleID != nil {
 								m.searching = true
 								m.rulingViewport.GotoTop()

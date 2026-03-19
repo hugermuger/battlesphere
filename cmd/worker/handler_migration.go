@@ -75,11 +75,11 @@ func (cfg *apiConfig) handlerBulkImportCards() error {
 		return err
 	}
 
-	var batch []types.CardJSON
+	var batch []types.ScryfallCard
 	count := 0
 
 	for decoder.More() {
-		var card types.CardJSON
+		var card types.ScryfallCard
 		err := decoder.Decode(&card)
 		if err != nil {
 			log.Printf("Decode error: %v", err)
@@ -95,7 +95,7 @@ func (cfg *apiConfig) handlerBulkImportCards() error {
 			}
 			count += len(batch)
 			log.Printf("Imported %v cards...", count)
-			batch = make([]types.CardJSON, 0, batchSize)
+			batch = make([]types.ScryfallCard, 0, batchSize)
 		}
 	}
 
@@ -121,7 +121,7 @@ func (cfg *apiConfig) handlerBulkImportCards() error {
 	return nil
 }
 
-func (cfg *apiConfig) handlerBatchImportCards(cards []types.CardJSON) error {
+func (cfg *apiConfig) handlerBatchImportCards(cards []types.ScryfallCard) error {
 	tx, err := cfg.dbConn.Begin()
 	if err != nil {
 		return err
@@ -172,11 +172,11 @@ func (cfg *apiConfig) handlerBulkImportRulings() error {
 		return err
 	}
 
-	var batch []types.Rulings
+	var batch []types.Ruling
 	count := 0
 
 	for decoder.More() {
-		var rule types.Rulings
+		var rule types.Ruling
 		err := decoder.Decode(&rule)
 		if err != nil {
 			log.Printf("Decode error: %v", err)
@@ -192,7 +192,7 @@ func (cfg *apiConfig) handlerBulkImportRulings() error {
 			}
 			count += len(batch)
 			log.Printf("Imported %v rules...", count)
-			batch = make([]types.Rulings, 0, batchSize)
+			batch = make([]types.Ruling, 0, batchSize)
 		}
 	}
 
@@ -218,7 +218,7 @@ func (cfg *apiConfig) handlerBulkImportRulings() error {
 	return nil
 }
 
-func (cfg *apiConfig) handlerBatchImportRulings(rules []types.Rulings) error {
+func (cfg *apiConfig) handlerBatchImportRulings(rules []types.Ruling) error {
 	tx, err := cfg.dbConn.Begin()
 	if err != nil {
 		return err

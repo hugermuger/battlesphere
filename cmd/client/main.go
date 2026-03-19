@@ -12,6 +12,8 @@ import (
 	"github.com/hugermuger/battlesphere/internal/types"
 )
 
+const website = "http://localhost:8080"
+
 type debounceMsg struct {
 	id     int
 	query  string
@@ -22,7 +24,7 @@ type searchResultMsg []list.Item
 
 type oracleSearchResultMsg struct {
 	list       []list.Item
-	oracleCard types.ResponseByOracleID
+	oracleCard types.OracleDetail
 	legalities types.Legalities
 }
 
@@ -83,91 +85,91 @@ var lang = []string{
 }
 
 type model struct {
-	searchInput            textinput.Model
-	activeTabIndex         int
-	winWidth               int
-	isTyping               bool
-	listSearchByName       list.Model
-	listSearchByOracle     list.Model
-	focusInput             bool
-	focusList              bool
-	focusViewport          bool
-	focusTabs              bool
-	searching              bool
-	err                    error
-	searchID               int
-	searchQuery            string
-	searchQueryLang        int
-	selectedLang           int
-	menuSearchID           int
-	oracleCardID           uuid.UUID
-	oracleCard             types.ResponseByOracleID
-	rulingViewport         viewport.Model
-	searchViewport         viewport.Model
-	selectedListDelegate   list.DefaultDelegate
-	unselectedListDelegate list.DefaultDelegate
+	searchInput        textinput.Model
+	activeTabIndex     int
+	winWidth           int
+	isTyping           bool
+	listSearchByName   list.Model
+	listSearchByOracle list.Model
+	focusInput         bool
+	focusList          bool
+	focusViewport      bool
+	focusTabs          bool
+	searching          bool
+	err                error
+	searchID           int
+	searchQuery        string
+	searchQueryLang    int
+	selectedLang       int
+	menuSearchID       int
+	oracleCardID       uuid.UUID
+	oracleCard         types.OracleDetail
+	rulingViewport     viewport.Model
+	searchViewport     viewport.Model
+	selectedDelegate   list.DefaultDelegate
+	unselectedDelegate list.DefaultDelegate
 }
 
 func initModel() model {
-	si := textinput.New()
-	si.Placeholder = "Search for a card..."
-	si.SetWidth(30)
+	searchInput := textinput.New()
+	searchInput.Placeholder = "Search for a card..."
+	searchInput.SetWidth(30)
 
-	d := list.NewDefaultDelegate()
-	d.Styles.SelectedTitle = d.Styles.SelectedTitle.
+	selectedDelegate := list.NewDefaultDelegate()
+	selectedDelegate.Styles.SelectedTitle = selectedDelegate.Styles.SelectedTitle.
 		Foreground(lipgloss.Color("117")).
 		BorderForeground(lipgloss.Color("208"))
-	d.Styles.SelectedDesc = d.Styles.SelectedDesc.
+	selectedDelegate.Styles.SelectedDesc = selectedDelegate.Styles.SelectedDesc.
 		Foreground(lipgloss.Color("152")).
 		BorderForeground(lipgloss.Color("208"))
 
-	ud := list.NewDefaultDelegate()
-	col := ud.Styles.NormalDesc.GetForeground()
-	ud.Styles.SelectedTitle = ud.Styles.SelectedTitle.
+	unselectedDelegate := list.NewDefaultDelegate()
+	col := unselectedDelegate.Styles.NormalDesc.GetForeground()
+	unselectedDelegate.Styles.SelectedTitle = unselectedDelegate.Styles.SelectedTitle.
 		Foreground(lipgloss.Color("252")).
 		BorderForeground(col)
-	ud.Styles.SelectedDesc = ud.Styles.SelectedDesc.
+	unselectedDelegate.Styles.SelectedDesc = unselectedDelegate.Styles.SelectedDesc.
 		Foreground(col).
 		BorderForeground(col)
 
-	l := list.New([]list.Item{}, ud, 0, 0)
-	l.SetShowTitle(false)
-	l.SetShowHelp(false)
-	l.DisableQuitKeybindings()
-	l.SetStatusBarItemName("card", "cards")
+	listSearchByName := list.New([]list.Item{}, unselectedDelegate, 0, 0)
+	listSearchByName.SetShowTitle(false)
+	listSearchByName.SetShowHelp(false)
+	listSearchByName.DisableQuitKeybindings()
+	listSearchByName.SetStatusBarItemName("card", "cards")
 
-	vpr := viewport.New()
-	vpr.SetWidth(30)
+	rulingViewport := viewport.New()
+	rulingViewport.SetWidth(30)
 
-	vps := viewport.New()
-	vps.SetWidth(30)
+	searchViewport := viewport.New()
+	searchViewport.SetWidth(30)
 
-	listOracle := list.New([]list.Item{}, ud, 0, 0)
-	listOracle.SetShowTitle(false)
-	listOracle.SetShowHelp(false)
-	listOracle.DisableQuitKeybindings()
-	listOracle.SetStatusBarItemName("print", "prints")
+	listSearchByOracle := list.New([]list.Item{}, unselectedDelegate, 0, 0)
+	listSearchByOracle.SetShowTitle(false)
+	listSearchByOracle.SetShowHelp(false)
+	listSearchByOracle.DisableQuitKeybindings()
+	listSearchByOracle.SetStatusBarItemName("print", "prints")
 
 	return model{
-		listSearchByName:       l,
-		listSearchByOracle:     listOracle,
-		searchInput:            si,
-		rulingViewport:         vpr,
-		searchViewport:         vps,
-		activeTabIndex:         0,
-		winWidth:               200,
-		isTyping:               false,
-		focusInput:             false,
-		focusList:              false,
-		focusViewport:          false,
-		focusTabs:              true,
-		searching:              true,
-		searchQuery:            "",
-		searchQueryLang:        len(lang),
-		selectedLang:           0,
-		menuSearchID:           0,
-		selectedListDelegate:   d,
-		unselectedListDelegate: ud,
+		listSearchByName:   listSearchByName,
+		listSearchByOracle: listSearchByOracle,
+		searchInput:        searchInput,
+		rulingViewport:     rulingViewport,
+		searchViewport:     searchViewport,
+		activeTabIndex:     0,
+		winWidth:           200,
+		isTyping:           false,
+		focusInput:         false,
+		focusList:          false,
+		focusViewport:      false,
+		focusTabs:          true,
+		searching:          true,
+		searchQuery:        "",
+		searchQueryLang:    len(lang),
+		selectedLang:       0,
+		menuSearchID:       0,
+		selectedDelegate:   selectedDelegate,
+		unselectedDelegate: unselectedDelegate,
 	}
 }
 

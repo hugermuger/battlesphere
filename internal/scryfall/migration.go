@@ -14,7 +14,7 @@ import (
 	"github.com/hugermuger/battlesphere/internal/types"
 )
 
-func SingleCardImport(ctx context.Context, qtx *database.Queries, card types.CardJSON) error {
+func SingleCardImport(ctx context.Context, qtx *database.Queries, card types.ScryfallCard) error {
 	layout := "2006-01-02"
 	relaseDate, err := time.Parse(layout, card.ReleasedAt)
 	if err != nil {
@@ -168,21 +168,15 @@ func SingleCardImport(ctx context.Context, qtx *database.Queries, card types.Car
 	return nil
 }
 
-func SingleRuleImport(ctx context.Context, qtx *database.Queries, rule types.Rulings) error {
-	layout := "2006-01-02"
-	publishedAt, err := time.Parse(layout, rule.PublishedAt)
-	if err != nil {
-		return err
-	}
-
+func SingleRuleImport(ctx context.Context, qtx *database.Queries, rule types.Ruling) error {
 	ruleParams := database.InsertRulingsParams{
 		OracleID:    rule.OracleID,
 		Source:      dbutils.ToNullString(rule.Source),
-		PublishedAt: publishedAt,
+		PublishedAt: rule.PublishedAt,
 		Comment:     rule.Comment,
 	}
 
-	err = qtx.InsertRulings(ctx, ruleParams)
+	err := qtx.InsertRulings(ctx, ruleParams)
 	if err != nil {
 		return err
 	}
@@ -215,7 +209,7 @@ func GetBulkURL(url, bulktype string) (string, error) {
 		return "", err
 	}
 
-	var urls types.URLS
+	var urls types.ScryfallBulkURLs
 	err = json.Unmarshal(body, &urls)
 	if err != nil {
 		return "", err
@@ -230,7 +224,7 @@ func GetBulkURL(url, bulktype string) (string, error) {
 	return "", fmt.Errorf("Bulk Type not supoorted")
 }
 
-func toNullImage(images *types.ImageUris, size string) sql.NullString {
+func toNullImage(images *types.ScryfallImages, size string) sql.NullString {
 	if images == nil {
 		return sql.NullString{Valid: false}
 	}
@@ -249,3 +243,4 @@ func toNullImage(images *types.ImageUris, size string) sql.NullString {
 		return sql.NullString{Valid: false}
 	}
 }
+

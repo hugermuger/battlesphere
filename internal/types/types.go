@@ -7,68 +7,77 @@ import (
 	"github.com/google/uuid"
 )
 
-type CardJSON struct {
-	ID              uuid.UUID    `json:"id"`
-	OracleID        *uuid.UUID   `json:"oracle_id"`
-	MtgoID          *int64       `json:"mtgo_id"`
-	ArenaID         *int64       `json:"arena_id"`
-	CardmarketID    *int64       `json:"cardmarket_id"`
-	Name            string       `json:"name"`
-	FlavorName      *string      `json:"flavor_name"`
-	PrintedName     *string      `json:"printed_name"`
-	Lang            string       `json:"lang"`
-	ReleasedAt      string       `json:"released_at"`
-	Layout          string       `json:"layout"`
-	ImageUris       *ImageUris   `json:"image_uris"`
-	ManaCost        *string      `json:"mana_cost"`
-	Cmc             float64      `json:"cmc"`
-	TypeLine        string       `json:"type_line"`
-	PrintedTypeLine *string      `json:"printed_type_line"`
-	OracleText      *string      `json:"oracle_text"`
-	PrintedText     *string      `json:"printed_text"`
-	Power           *string      `json:"power"`
-	Toughness       *string      `json:"toughness"`
-	Loyalty         *string      `json:"loyalty"`
-	Colors          *[]string    `json:"colors"`
-	ColorIdentity   []string     `json:"color_identity"`
-	Defense         *string      `json:"defense"`
-	Keywords        []string     `json:"keywords"`
-	FlavorText      *string      `json:"flavor_text"`
-	CardFaces       *[]CardFaces `json:"card_faces"`
-	Legalities      Legalities   `json:"legalities"`
-	Games           []string     `json:"games"`
-	GameChanger     *bool        `json:"game_changer"`
-	Finishes        []string     `json:"finishes"`
-	Set             string       `json:"set"`
-	SetName         string       `json:"set_name"`
-	CollectorNumber string       `json:"collector_number"`
-	Rarity          string       `json:"rarity"`
-	Artist          *string      `json:"artist"`
-	EdhrecRank      *int         `json:"edhrec_rank"`
-	Prices          Prices       `json:"prices"`
+type User struct {
+	ID        uuid.UUID `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Email     string    `json:"email"`
+	UserName  string    `json:"user_name"`
 }
 
-type CardFaces struct {
-	Name            string     `json:"name"`
-	PrintedName     *string    `json:"printed_name"`
-	ManaCost        string     `json:"mana_cost"`
-	Cmc             *float64   `json:"cmc"`
-	TypeLine        *string    `json:"type_line"`
-	PrintedTypeLine *string    `json:"printed_type_line"`
-	OracleText      *string    `json:"oracle_text"`
-	PrintedText     *string    `json:"printed_text"`
-	Power           *string    `json:"power"`
-	Toughness       *string    `json:"toughness"`
-	Loyalty         *string    `json:"loyalty"`
-	Colors          *[]string  `json:"colors"`
-	Defense         *string    `json:"defense"`
-	FlavorText      *string    `json:"flavor_text"`
-	Artist          *string    `json:"artist"`
-	Layout          *string    `json:"layout"`
-	ImageUris       *ImageUris `json:"image_uris"`
+// Scryfall-specific types for migration
+type ScryfallCard struct {
+	ID              uuid.UUID       `json:"id"`
+	OracleID        *uuid.UUID      `json:"oracle_id"`
+	MtgoID          *int64          `json:"mtgo_id"`
+	ArenaID         *int64          `json:"arena_id"`
+	CardmarketID    *int64          `json:"cardmarket_id"`
+	Name            string          `json:"name"`
+	FlavorName      *string         `json:"flavor_name"`
+	PrintedName     *string         `json:"printed_name"`
+	Lang            string          `json:"lang"`
+	ReleasedAt      string          `json:"released_at"`
+	Layout          string          `json:"layout"`
+	ImageUris       *ScryfallImages `json:"image_uris"`
+	ManaCost        *string         `json:"mana_cost"`
+	Cmc             float64         `json:"cmc"`
+	TypeLine        string          `json:"type_line"`
+	PrintedTypeLine *string         `json:"printed_type_line"`
+	OracleText      *string         `json:"oracle_text"`
+	PrintedText     *string         `json:"printed_text"`
+	Power           *string         `json:"power"`
+	Toughness       *string         `json:"toughness"`
+	Loyalty         *string         `json:"loyalty"`
+	Colors          *[]string       `json:"colors"`
+	ColorIdentity   []string        `json:"color_identity"`
+	Defense         *string         `json:"defense"`
+	Keywords        []string        `json:"keywords"`
+	FlavorText      *string         `json:"flavor_text"`
+	CardFaces       *[]ScryfallFace `json:"card_faces"`
+	Legalities      Legalities      `json:"legalities"`
+	Games           []string        `json:"games"`
+	GameChanger     *bool           `json:"game_changer"`
+	Finishes        []string        `json:"finishes"`
+	Set             string          `json:"set"`
+	SetName         string          `json:"set_name"`
+	CollectorNumber string          `json:"collector_number"`
+	Rarity          string          `json:"rarity"`
+	Artist          *string         `json:"artist"`
+	EdhrecRank      *int            `json:"edhrec_rank"`
+	Prices          Prices          `json:"prices"`
 }
 
-type ImageUris struct {
+type ScryfallFace struct {
+	Name            string          `json:"name"`
+	PrintedName     *string         `json:"printed_name"`
+	ManaCost        string          `json:"mana_cost"`
+	Cmc             *float64        `json:"cmc"`
+	TypeLine        *string         `json:"type_line"`
+	PrintedTypeLine *string         `json:"printed_type_line"`
+	OracleText      *string         `json:"oracle_text"`
+	PrintedText     *string         `json:"printed_text"`
+	Power           *string         `json:"power"`
+	Toughness       *string         `json:"toughness"`
+	Loyalty         *string         `json:"loyalty"`
+	Colors          *[]string       `json:"colors"`
+	Defense         *string         `json:"defense"`
+	FlavorText      *string         `json:"flavor_text"`
+	Artist          *string         `json:"artist"`
+	Layout          *string         `json:"layout"`
+	ImageUris       *ScryfallImages `json:"image_uris"`
+}
+
+type ScryfallImages struct {
 	Small   *string `json:"small"`
 	Normal  *string `json:"normal"`
 	Large   *string `json:"large"`
@@ -76,6 +85,15 @@ type ImageUris struct {
 	ArtCrop *string `json:"art_crop"`
 }
 
+type ScryfallBulkURLs struct {
+	Data []struct {
+		Type        string    `json:"type"`
+		UpdatedAt   time.Time `json:"updated_at"`
+		DownloadURI string    `json:"download_uri"`
+	} `json:"data"`
+}
+
+// Shared types
 type Legalities struct {
 	Standard        *string `json:"standard"`
 	Future          *string `json:"future"`
@@ -108,22 +126,23 @@ type Prices struct {
 	EurFoil   *string `json:"eur_foil"`
 }
 
-type Rulings struct {
+type Ruling struct {
 	OracleID    uuid.UUID `json:"oracle_id"`
 	Source      *string   `json:"source"`
-	PublishedAt string    `json:"published_at"`
+	PublishedAt time.Time `json:"published_at"`
 	Comment     string    `json:"comment"`
 }
 
-type URLS struct {
-	Data []struct {
-		Type        string    `json:"type"`
-		UpdatedAt   time.Time `json:"updated_at"`
-		DownloadURI string    `json:"download_uri"`
-	} `json:"data"`
+type Images struct {
+	Normal *string `json:"normal"`
+	PNG    *string `json:"png"`
+	Large  *string `json:"large"`
+	Small  *string `json:"small"`
+	Crop   *string `json:"crop"`
 }
 
-type CardResponseSearchByName struct {
+// API Response types
+type CardSearchItem struct {
 	OracleID *uuid.UUID `json:"oracle_id"`
 	Name     string     `json:"name"`
 	Layout   string     `json:"layout"`
@@ -131,23 +150,23 @@ type CardResponseSearchByName struct {
 	TypeLine string     `json:"type_line"`
 }
 
-func (i CardResponseSearchByName) Title() string {
+func (i CardSearchItem) Title() string {
 	if i.ManaCost != nil && *i.ManaCost != "" {
 		return fmt.Sprintf("%v - %v", i.Name, *i.ManaCost)
-	} else {
-		return i.Name
 	}
+	return i.Name
 }
-func (i CardResponseSearchByName) Description() string {
+
+func (i CardSearchItem) Description() string {
 	if i.Layout != "normal" {
 		return fmt.Sprintf("%v (%v)", i.TypeLine, i.Layout)
-	} else {
-		return i.TypeLine
 	}
+	return i.TypeLine
 }
-func (i CardResponseSearchByName) FilterValue() string { return i.Name }
 
-type CardResponseSearchByOracleID struct {
+func (i CardSearchItem) FilterValue() string { return i.Name }
+
+type OracleSearchItem struct {
 	ID              uuid.UUID `json:"id"`
 	Name            string    `json:"name"`
 	FlavorName      *string   `json:"flavor_name"`
@@ -157,118 +176,90 @@ type CardResponseSearchByOracleID struct {
 	CollectorNumber string    `json:"collector_number"`
 }
 
-func (i CardResponseSearchByOracleID) Title() string {
+func (i OracleSearchItem) Title() string {
 	if i.FlavorName != nil {
 		return fmt.Sprintf("%v (%v)", *i.FlavorName, i.Name)
-	} else {
-		return i.Name
 	}
+	return i.Name
 }
-func (i CardResponseSearchByOracleID) Description() string {
+
+func (i OracleSearchItem) Description() string {
 	return fmt.Sprintf("%v %v (%v)", i.SetName, i.CollectorNumber, i.ReleasedAt.Format("2006"))
 }
-func (i CardResponseSearchByOracleID) FilterValue() string { return i.Name }
 
-type ResponseByOracleID struct {
-	Name          string                 `json:"name"`
-	Layout        string                 `json:"layout"`
-	Cmc           float64                `json:"cmc"`
-	Colors        *[]string              `json:"colors"`
-	ColorIdentity []string               `json:"color_identity"`
-	ManaCost      *string                `json:"mana_cost"`
-	TypeLine      string                 `json:"type_line"`
-	OracleText    *string                `json:"oracle_text"`
-	PrintedText   *string                `json:"printed_text"`
-	Power         *string                `json:"power"`
-	Toughness     *string                `json:"toughness"`
-	Loyalty       *string                `json:"loyalty"`
-	Defense       *string                `json:"defense"`
-	CardFaces     *[]CardFacesByOracleID `json:"card_faces"`
-	Multifaced    bool                   `json:"multifaced"`
-	Legalities    Legalities             `json:"legalities"`
-	Rulings       []ResponseRulings      `json:"rulings"`
-	GameChanger   *bool                  `json:"game_changer"`
-	EdhrecRank    *int32                 `json:"edhrec_rank"`
+func (i OracleSearchItem) FilterValue() string { return i.Name }
+
+type OracleDetail struct {
+	Name          string      `json:"name"`
+	Layout        string      `json:"layout"`
+	Cmc           float64     `json:"cmc"`
+	Colors        *[]string   `json:"colors"`
+	ColorIdentity []string    `json:"color_identity"`
+	ManaCost      *string     `json:"mana_cost"`
+	TypeLine      string      `json:"type_line"`
+	OracleText    *string     `json:"oracle_text"`
+	PrintedText   *string     `json:"printed_text"`
+	Power         *string     `json:"power"`
+	Toughness     *string     `json:"toughness"`
+	Loyalty       *string     `json:"loyalty"`
+	Defense       *string     `json:"defense"`
+	CardFaces     *[]CardFace `json:"card_faces"`
+	Multifaced    bool        `json:"multifaced"`
+	Legalities    Legalities  `json:"legalities"`
+	Rulings       []Ruling    `json:"rulings"`
+	GameChanger   *bool       `json:"game_changer"`
+	EdhrecRank    *int32      `json:"edhrec_rank"`
 }
 
-type CardFacesByOracleID struct {
+type CardDetail struct {
+	ID              uuid.UUID   `json:"id"`
+	OracleID        *uuid.UUID  `json:"oracle_id"`
+	Name            string      `json:"name"`
+	FlavorName      *string     `json:"flavor_name"`
+	Lang            string      `json:"lang"`
+	ReleasedAt      time.Time   `json:"released_at"`
+	Layout          string      `json:"layout"`
+	Images          Images      `json:"images"`
+	ManaCost        *string     `json:"mana_cost"`
+	Cmc             float64     `json:"cmc"`
+	TypeLine        string      `json:"type_line"`
+	OracleText      *string     `json:"oracle_text"`
+	PrintedText     *string     `json:"printed_text"`
+	Power           *string     `json:"power"`
+	Toughness       *string     `json:"toughness"`
+	Loyalty         *string     `json:"loyalty"`
+	Colors          *[]string   `json:"colors"`
+	ColorIdentity   []string    `json:"color_identity"`
+	Defense         *string     `json:"defense"`
+	Keywords        []string    `json:"keywords"`
+	FlavorText      *string     `json:"flavor_text"`
+	CardFaces       *[]CardFace `json:"card_faces"`
+	Legalities      Legalities  `json:"legalities"`
+	GameChanger     *bool       `json:"game_changer"`
+	Finishes        []string    `json:"finishes"`
+	Set             string      `json:"set"`
+	SetName         string      `json:"set_name"`
+	CollectorNumber string      `json:"collector_number"`
+	Rarity          string      `json:"rarity"`
+	Artist          *string     `json:"artist"`
+	EdhrecRank      *int32      `json:"edhrec_rank"`
+	Multifaced      bool        `json:"multifaced"`
+}
+
+type CardFace struct {
 	Name        string    `json:"name"`
 	ManaCost    string    `json:"mana_cost"`
 	Cmc         *float64  `json:"cmc"`
-	Colors      *[]string `json:"colors"`
 	TypeLine    *string   `json:"type_line"`
 	OracleText  *string   `json:"oracle_text"`
 	PrintedText *string   `json:"printed_text"`
 	Power       *string   `json:"power"`
 	Toughness   *string   `json:"toughness"`
 	Loyalty     *string   `json:"loyalty"`
+	Colors      *[]string `json:"colors"`
 	Defense     *string   `json:"defense"`
-}
-
-type ResponseRulings struct {
-	OracleID    uuid.UUID `json:"oracle_id"`
-	Source      *string   `json:"source"`
-	PublishedAt time.Time `json:"published_at"`
-	Comment     string    `json:"comment"`
-}
-
-type ResponseCard struct {
-	ID              uuid.UUID            `json:"id"`
-	OracleID        *uuid.UUID           `json:"oracle_id"`
-	Name            string               `json:"name"`
-	FlavorName      *string              `json:"flavor_name"`
-	Lang            string               `json:"lang"`
-	ReleasedAt      time.Time            `json:"released_at"`
-	Layout          string               `json:"layout"`
-	ImageUris       ResponseImages       `json:"image_uris"`
-	ManaCost        *string              `json:"mana_cost"`
-	Cmc             float64              `json:"cmc"`
-	TypeLine        string               `json:"type_line"`
-	OracleText      *string              `json:"oracle_text"`
-	PrintedText     *string              `json:"printed_text"`
-	Power           *string              `json:"power"`
-	Toughness       *string              `json:"toughness"`
-	Loyalty         *string              `json:"loyalty"`
-	Colors          *[]string            `json:"colors"`
-	ColorIdentity   []string             `json:"color_identity"`
-	Defense         *string              `json:"defense"`
-	Keywords        []string             `json:"keywords"`
-	FlavorText      *string              `json:"flavor_text"`
-	CardFaces       *[]ResponseCardFaces `json:"card_faces"`
-	Legalities      Legalities           `json:"legalities"`
-	GameChanger     *bool                `json:"game_changer"`
-	Finishes        []string             `json:"finishes"`
-	Set             string               `json:"set"`
-	SetName         string               `json:"set_name"`
-	CollectorNumber string               `json:"collector_number"`
-	Rarity          string               `json:"rarity"`
-	Artist          *string              `json:"artist"`
-	EdhrecRank      *int32               `json:"edhrec_rank"`
-	Multifaced      bool                 `json:"multifaced"`
-}
-
-type ResponseImages struct {
-	ImageNormal *string `json:"image_normal"`
-	ImagePNG    *string `json:"image_png"`
-	ImageLarge  *string `json:"image_large"`
-	ImageSmall  *string `json:"image_small"`
-	ImageCrop   *string `json:"image_crop"`
-}
-
-type ResponseCardFaces struct {
-	Name        string         `json:"name"`
-	ManaCost    string         `json:"mana_cost"`
-	Cmc         *float64       `json:"cmc"`
-	TypeLine    *string        `json:"type_line"`
-	OracleText  *string        `json:"oracle_text"`
-	PrintedText *string        `json:"printed_text"`
-	Power       *string        `json:"power"`
-	Toughness   *string        `json:"toughness"`
-	Loyalty     *string        `json:"loyalty"`
-	Colors      *[]string      `json:"colors"`
-	Defense     *string        `json:"defense"`
-	FlavorText  *string        `json:"flavor_text"`
-	Artist      *string        `json:"artist"`
-	Layout      *string        `json:"layout"`
-	ImageUris   ResponseImages `json:"image_uris"`
+	FlavorText  *string   `json:"flavor_text"`
+	Artist      *string   `json:"artist"`
+	Layout      *string   `json:"layout"`
+	Images      *Images   `json:"images,omitempty"`
 }

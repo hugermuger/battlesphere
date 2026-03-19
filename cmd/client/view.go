@@ -49,11 +49,11 @@ func stdView(m model) string {
 
 func searchView(m model) string {
 	if m.focusList {
-		m.listSearchByName.SetDelegate(m.selectedListDelegate)
-		m.listSearchByOracle.SetDelegate(m.selectedListDelegate)
+		m.listSearchByName.SetDelegate(m.selectedDelegate)
+		m.listSearchByOracle.SetDelegate(m.selectedDelegate)
 	} else {
-		m.listSearchByName.SetDelegate(m.unselectedListDelegate)
-		m.listSearchByOracle.SetDelegate(m.unselectedListDelegate)
+		m.listSearchByName.SetDelegate(m.unselectedDelegate)
+		m.listSearchByOracle.SetDelegate(m.unselectedDelegate)
 	}
 
 	rulings := "\nRulings"
@@ -131,19 +131,20 @@ func searchView(m model) string {
 		legalities := renderLegalities(m)
 		m.rulingViewport.SetWidth(m.winWidth / 2)
 		m.searchViewport.SetWidth(m.winWidth / 2)
-		m.searchViewport.SetContent(m.listSearchByOracle.View())
 		if m.oracleCard.Multifaced {
 			faces := renderMultifacesOracle(m)
 			height := m.listSearchByName.Height() - (lipgloss.Height(buffer) + lipgloss.Height(faces) + lipgloss.Height(legalities))
 			m.rulingViewport.SetHeight(height - 5)
-			m.listSearchByOracle.SetHeight(height - 2)
+			m.listSearchByOracle.SetHeight(height - 3)
+			m.searchViewport.SetContent(m.listSearchByOracle.View())
 			m.searchViewport.SetHeight(height - 2)
 			listView := lipgloss.JoinHorizontal(lipgloss.Top, m.searchViewport.View(), rulings+"\n\n"+m.rulingViewport.View())
 			v = card + "\n" + legalities + "\n" + faces + "\n" + listView + "\n\n" + lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, la)
 		} else {
 			height := m.listSearchByName.Height() - (lipgloss.Height(buffer) + lipgloss.Height(legalities))
 			m.rulingViewport.SetHeight(height - 5)
-			m.listSearchByOracle.SetHeight(height - 2)
+			m.listSearchByOracle.SetHeight(height - 3)
+			m.searchViewport.SetContent(m.listSearchByOracle.View())
 			m.searchViewport.SetHeight(height - 2)
 			listView := lipgloss.JoinHorizontal(lipgloss.Top, m.searchViewport.View(), rulings+"\n\n"+m.rulingViewport.View())
 			v = card + "\n" + legalities + "\n" + listView + "\n\n" + lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, la)

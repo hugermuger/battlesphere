@@ -43,7 +43,7 @@ func ToNullUUID(u *uuid.UUID) uuid.NullUUID {
 	return uuid.NullUUID{UUID: *u, Valid: true}
 }
 
-func ToUUIDPtr(nullID uuid.NullUUID) *uuid.UUID {
+func FromNullUUID(nullID uuid.NullUUID) *uuid.UUID {
 	if !nullID.Valid {
 		return nil
 	}
