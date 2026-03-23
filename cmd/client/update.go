@@ -12,12 +12,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.winWidth = msg.Width
-		m.listSearchByName.SetSize(msg.Width, msg.Height-10)
-		m.listSearchByOracle.SetSize(msg.Width, msg.Height-10)
+		m.search.listSearchByName.SetSize(msg.Width, msg.Height-10)
+		m.search.listSearchByOracle.SetSize(msg.Width, msg.Height-10)
 		switch tuiTabs[m.activeTabIndex].title {
 		case "Card Search":
-			if len(m.oracleCard.Rulings) > 0 {
-				m.rulingViewport.SetContent(renderRulings(m))
+			if len(m.search.oracleCard.Rulings) > 0 {
+				m.search.rulingViewport.SetContent(renderRulings(m))
 			}
 		}
 
@@ -43,31 +43,39 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		switch tuiTabs[m.activeTabIndex].title {
+		case "User":
+			if m.login.registerView {
+				m.login.registerInput[m.login.focusIndex], cmd = m.login.registerInput[m.login.focusIndex].Update(msg)
+			} else {
+				m.login.loginInput[m.login.focusIndex], cmd = m.login.loginInput[m.login.focusIndex].Update(msg)
+			}
+			return m, cmd
+
 		case "Card Search":
 			switch msg.String() {
 			case "enter":
-				switch m.menuSearchID {
+				switch m.search.menuSearchIndex {
 				case 0:
-					if m.focusInput {
-						m.focusList = true
-						m.focusInput = false
-						m.searchInput.Blur()
+					if m.search.focusInput {
+						m.search.focusList = true
+						m.search.focusInput = false
+						m.search.searchInput.Blur()
 						return m, nil
 					} else if m.focusTabs {
 						m.focusTabs = false
-						m.focusInput = true
-						m.focusList = false
-						m.searchInput.Focus()
+						m.search.focusInput = true
+						m.search.focusList = false
+						m.search.searchInput.Focus()
 						return m, nil
-					} else if m.focusList {
-						selectedItem := m.listSearchByName.SelectedItem()
+					} else if m.search.focusList {
+						selectedItem := m.search.listSearchByName.SelectedItem()
 						if selectedItem != nil {
 							card := selectedItem.(types.CardSearchItem)
 							if card.OracleID != nil {
 								m.searching = true
-								m.rulingViewport.GotoTop()
-								m.menuSearchID = 1
-								m.oracleCardID = *card.OracleID
+								m.search.rulingViewport.GotoTop()
+								m.search.menuSearchIndex = 1
+								m.search.oracleCardID = *card.OracleID
 								return m, m.fetchCardsByOracleID(card.OracleID.String())
 							}
 						}
@@ -75,138 +83,138 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				case 1:
 					if m.focusTabs {
 						m.focusTabs = false
-						m.focusList = true
+						m.search.focusList = true
 					}
 				}
 
 			case "right":
-				switch m.menuSearchID {
+				switch m.search.menuSearchIndex {
 				case 0:
-					m.listSearchByName, cmd = m.listSearchByName.Update(msg)
+					m.search.listSearchByName, cmd = m.search.listSearchByName.Update(msg)
 					return m, nil
 				case 1:
-					if m.focusList {
-						m.focusList = false
-						m.focusViewport = true
-						m.listSearchByOracle.ResetSelected()
+					if m.search.focusList {
+						m.search.focusList = false
+						m.search.focusViewport = true
+						m.search.listSearchByOracle.ResetSelected()
 					}
 				}
 			case "left":
-				switch m.menuSearchID {
+				switch m.search.menuSearchIndex {
 				case 0:
-					m.listSearchByName, cmd = m.listSearchByName.Update(msg)
+					m.search.listSearchByName, cmd = m.search.listSearchByName.Update(msg)
 					return m, nil
 				case 1:
-					if m.focusViewport {
-						m.focusList = true
-						m.focusViewport = false
+					if m.search.focusViewport {
+						m.search.focusList = true
+						m.search.focusViewport = false
 					}
 				}
 
 			case "down":
-				if m.focusInput {
-					m.focusList = true
-					m.focusInput = false
-					m.searchInput.Blur()
+				if m.search.focusInput {
+					m.search.focusList = true
+					m.search.focusInput = false
+					m.search.searchInput.Blur()
 					return m, nil
 				}
 
-				if m.focusList {
-					switch m.menuSearchID {
+				if m.search.focusList {
+					switch m.search.menuSearchIndex {
 					case 0:
-						m.listSearchByName, cmd = m.listSearchByName.Update(msg)
+						m.search.listSearchByName, cmd = m.search.listSearchByName.Update(msg)
 						return m, nil
 					case 1:
-						m.listSearchByOracle, cmd = m.listSearchByOracle.Update(msg)
+						m.search.listSearchByOracle, cmd = m.search.listSearchByOracle.Update(msg)
 						return m, nil
 					}
-				} else if m.focusViewport {
-					m.rulingViewport, cmd = m.rulingViewport.Update(msg)
+				} else if m.search.focusViewport {
+					m.search.rulingViewport, cmd = m.search.rulingViewport.Update(msg)
 					return m, nil
 				}
 
 			case "up":
-				if m.focusList {
-					switch m.menuSearchID {
+				if m.search.focusList {
+					switch m.search.menuSearchIndex {
 					case 0:
-						m.listSearchByName, cmd = m.listSearchByName.Update(msg)
+						m.search.listSearchByName, cmd = m.search.listSearchByName.Update(msg)
 						return m, nil
 					case 1:
-						m.listSearchByOracle, cmd = m.listSearchByOracle.Update(msg)
+						m.search.listSearchByOracle, cmd = m.search.listSearchByOracle.Update(msg)
 						return m, nil
 					}
-				} else if m.focusViewport {
-					m.rulingViewport, cmd = m.rulingViewport.Update(msg)
+				} else if m.search.focusViewport {
+					m.search.rulingViewport, cmd = m.search.rulingViewport.Update(msg)
 					return m, nil
 				}
 
 			case "ctrl+c":
-				m.searchInput.Reset()
-				m.searchQuery = ""
-				m.listSearchByName.SetItems([]list.Item{})
-				m.listSearchByOracle.SetItems([]list.Item{})
-				m.menuSearchID = 0
-				if m.focusList || m.focusViewport {
-					m.focusList = false
-					m.focusViewport = false
-					m.focusInput = true
-					m.searchInput.Focus()
+				m.search.searchInput.Reset()
+				m.search.searchQuery = ""
+				m.search.listSearchByName.SetItems([]list.Item{})
+				m.search.listSearchByOracle.SetItems([]list.Item{})
+				m.search.menuSearchIndex = 0
+				if m.search.focusList || m.search.focusViewport {
+					m.search.focusList = false
+					m.search.focusViewport = false
+					m.search.focusInput = true
+					m.search.searchInput.Focus()
 					return m, nil
 				}
 
 			case "esc":
-				if m.focusInput {
-					m.focusInput = false
-					m.searchInput.Blur()
+				if m.search.focusInput {
+					m.search.focusInput = false
+					m.search.searchInput.Blur()
 				}
 				m.focusTabs = true
-				m.focusList = false
-				m.focusViewport = false
+				m.search.focusList = false
+				m.search.focusViewport = false
 				return m, nil
 
 			case "ctrl+l":
-				m.selectedLang++
-				if m.selectedLang > len(lang)-1 {
-					m.selectedLang = 0
+				m.search.selectedLang++
+				if m.search.selectedLang > len(lang)-1 {
+					m.search.selectedLang = 0
 				}
-				switch m.menuSearchID {
+				switch m.search.menuSearchIndex {
 				case 0:
-					m.searchQuery = m.searchInput.Value()
-					m.searchQueryLang = m.selectedLang
-					m.searchID++
-					return m, tea.Batch(cmd, m.debounceSearch(m.searchID, m.searchInput.Value(), m.selectedLang))
+					m.search.searchQuery = m.search.searchInput.Value()
+					m.search.searchQueryLang = m.search.selectedLang
+					m.search.searchID++
+					return m, tea.Batch(cmd, m.debounceSearch(m.search.searchID, m.search.searchInput.Value(), m.search.selectedLang))
 				case 1:
-					return m, tea.Batch(cmd, m.fetchCardsByOracleID(m.oracleCardID.String()))
+					return m, tea.Batch(cmd, m.fetchCardsByOracleID(m.search.oracleCardID.String()))
 				}
 
 			case "backspace":
-				switch m.menuSearchID {
+				switch m.search.menuSearchIndex {
 				case 0:
-					if m.focusList {
-						m.focusInput = true
-						m.focusList = false
-						m.searchInput.Focus()
+					if m.search.focusList {
+						m.search.focusInput = true
+						m.search.focusList = false
+						m.search.searchInput.Focus()
 						return m, nil
 					}
 				case 1:
-					m.menuSearchID = 0
-					m.selectedLang = m.searchQueryLang
-					m.focusList = true
-					m.focusViewport = false
+					m.search.menuSearchIndex = 0
+					m.search.selectedLang = m.search.searchQueryLang
+					m.search.focusList = true
+					m.search.focusViewport = false
 					return m, nil
 				}
 			}
 
-			if m.focusInput {
-				m.searchInput, cmd = m.searchInput.Update(msg)
+			if m.search.focusInput {
+				m.search.searchInput, cmd = m.search.searchInput.Update(msg)
 			}
 
-			if m.menuSearchID == 0 {
-				if m.searchInput.Value() != m.searchQuery || m.searchQueryLang != m.selectedLang {
-					m.searchQuery = m.searchInput.Value()
-					m.searchQueryLang = m.selectedLang
-					m.searchID++
-					return m, tea.Batch(cmd, m.debounceSearch(m.searchID, m.searchInput.Value(), m.selectedLang))
+			if m.search.menuSearchIndex == 0 {
+				if m.search.searchInput.Value() != m.search.searchQuery || m.search.searchQueryLang != m.search.selectedLang {
+					m.search.searchQuery = m.search.searchInput.Value()
+					m.search.searchQueryLang = m.search.selectedLang
+					m.search.searchID++
+					return m, tea.Batch(cmd, m.debounceSearch(m.search.searchID, m.search.searchInput.Value(), m.search.selectedLang))
 				}
 			}
 
@@ -216,11 +224,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case debounceMsg:
 		switch tuiTabs[m.activeTabIndex].title {
 		case "Card Search":
-			if msg.id == m.searchID && msg.query != "" {
+			if msg.id == m.search.searchID && msg.query != "" {
 				m.searching = true
 				return m, m.fetchCardsByName(msg.query)
 			} else if msg.query == "" {
-				m.listSearchByName.SetItems([]list.Item{})
+				m.search.listSearchByName.SetItems([]list.Item{})
 			}
 			return m, nil
 		}
@@ -229,8 +237,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch tuiTabs[m.activeTabIndex].title {
 		case "Card Search":
 			m.searching = false
-			m.listSearchByName.Select(0)
-			m.listSearchByName.SetItems(msg)
+			m.search.listSearchByName.Select(0)
+			m.search.listSearchByName.SetItems(msg)
 			return m, nil
 		}
 
@@ -238,13 +246,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch tuiTabs[m.activeTabIndex].title {
 		case "Card Search":
 			m.searching = false
-			m.listSearchByOracle.Select(0)
-			m.listSearchByOracle.SetItems(msg.list)
-			m.oracleCard = msg.oracleCard
-			if len(m.oracleCard.Rulings) > 0 {
-				m.rulingViewport.SetContent(renderRulings(m))
+			m.search.listSearchByOracle.Select(0)
+			m.search.listSearchByOracle.SetItems(msg.list)
+			m.search.oracleCard = msg.oracleCard
+			if len(m.search.oracleCard.Rulings) > 0 {
+				m.search.rulingViewport.SetContent(renderRulings(m))
 			} else {
-				m.rulingViewport.SetContent("")
+				m.search.rulingViewport.SetContent("")
 			}
 			return m, nil
 		}

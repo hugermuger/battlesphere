@@ -60,14 +60,10 @@ type TUITab struct {
 }
 
 var tuiTabs = []TUITab{
-	{title: "Welcome"},
+	{title: "User"},
 	{title: "Card Search"},
 	{title: "Collection"},
-}
-
-var menuSearch = []string{
-	"name",
-	"oracle",
+	{title: "Decks"},
 }
 
 var lang = []string{
@@ -85,32 +81,121 @@ var lang = []string{
 }
 
 type model struct {
-	searchInput        textinput.Model
-	activeTabIndex     int
-	winWidth           int
-	isTyping           bool
+	activeTabIndex int
+	winWidth       int
+	isTyping       bool
+	focusTabs      bool
+	searching      bool
+	err            error
+	search         searchMenu
+	login          loginMenu
+	listStyles     listStyle
+}
+
+type listStyle struct {
+	selectedDelegate   list.DefaultDelegate
+	unselectedDelegate list.DefaultDelegate
+}
+
+type searchMenu struct {
+	searchID           int
+	searchQuery        string
+	searchQueryLang    int
+	selectedLang       int
+	menuSearchIndex    int
+	oracleCardID       uuid.UUID
+	oracleCard         types.OracleDetail
+	rulingViewport     viewport.Model
+	searchViewport     viewport.Model
 	listSearchByName   list.Model
 	listSearchByOracle list.Model
 	focusInput         bool
 	focusList          bool
 	focusViewport      bool
-	focusTabs          bool
-	searching          bool
-	err                error
-	searchID           int
-	searchQuery        string
-	searchQueryLang    int
-	selectedLang       int
-	menuSearchID       int
-	oracleCardID       uuid.UUID
-	oracleCard         types.OracleDetail
-	rulingViewport     viewport.Model
-	searchViewport     viewport.Model
-	selectedDelegate   list.DefaultDelegate
-	unselectedDelegate list.DefaultDelegate
+	searchInput        textinput.Model
+}
+
+type loginMenu struct {
+	focusedStyle  lipgloss.Style
+	blurredStyle  lipgloss.Style
+	registerView  bool
+	registerInput []textinput.Model
+	loginInput    []textinput.Model
+	focusIndex    int
+	loggedIn      bool
+	message       string
 }
 
 func initModel() model {
+	// Login Menu
+	focusedStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("208"))
+	blurredStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
+
+	registerInput := make([]textinput.Model, 4)
+
+	var t textinput.Model
+	for i := range registerInput {
+		t = textinput.New()
+		t.CharLimit = 64
+
+		s := t.Styles()
+		s.Cursor.Color = lipgloss.Color("208")
+		s.Focused.Prompt = focusedStyle
+		s.Focused.Text = focusedStyle
+		s.Blurred.Prompt = blurredStyle
+		s.Focused.Text = focusedStyle
+		t.SetStyles(s)
+		t.SetWidth(64)
+
+		switch i {
+		case 0:
+			t.Placeholder = "Username"
+			t.Focus()
+		case 1:
+			t.Placeholder = "Email"
+		case 2:
+			t.Placeholder = "Password"
+			t.EchoMode = textinput.EchoPassword
+			t.EchoCharacter = '*'
+		case 3:
+			t.Placeholder = "Repeat Password"
+			t.EchoMode = textinput.EchoPassword
+			t.EchoCharacter = '*'
+
+		}
+
+		registerInput[i] = t
+	}
+
+	loginInput := make([]textinput.Model, 2)
+
+	for i := range loginInput {
+		t = textinput.New()
+		t.CharLimit = 64
+
+		s := t.Styles()
+		s.Cursor.Color = lipgloss.Color("208")
+		s.Focused.Prompt = focusedStyle
+		s.Focused.Text = focusedStyle
+		s.Blurred.Prompt = blurredStyle
+		s.Focused.Text = focusedStyle
+		t.SetStyles(s)
+		t.SetWidth(64)
+
+		switch i {
+		case 0:
+			t.Placeholder = "Username"
+			t.Focus()
+		case 1:
+			t.Placeholder = "Password"
+			t.EchoMode = textinput.EchoPassword
+			t.EchoCharacter = '*'
+		}
+
+		loginInput[i] = t
+	}
+
+	// Search Menu
 	searchInput := textinput.New()
 	searchInput.Placeholder = "Search for a card..."
 	searchInput.SetWidth(30)
@@ -151,25 +236,38 @@ func initModel() model {
 	listSearchByOracle.SetStatusBarItemName("print", "prints")
 
 	return model{
-		listSearchByName:   listSearchByName,
-		listSearchByOracle: listSearchByOracle,
-		searchInput:        searchInput,
-		rulingViewport:     rulingViewport,
-		searchViewport:     searchViewport,
-		activeTabIndex:     0,
-		winWidth:           200,
-		isTyping:           false,
-		focusInput:         false,
-		focusList:          false,
-		focusViewport:      false,
-		focusTabs:          true,
-		searching:          true,
-		searchQuery:        "",
-		searchQueryLang:    len(lang),
-		selectedLang:       0,
-		menuSearchID:       0,
-		selectedDelegate:   selectedDelegate,
-		unselectedDelegate: unselectedDelegate,
+
+		activeTabIndex: 0,
+		winWidth:       200,
+		isTyping:       false,
+		focusTabs:      true,
+		searching:      true,
+		login: loginMenu{
+			blurredStyle:  blurredStyle,
+			focusedStyle:  focusedStyle,
+			registerInput: registerInput,
+			loginInput:    loginInput,
+			focusIndex:    0,
+			registerView:  false,
+		},
+		search: searchMenu{
+			listSearchByName:   listSearchByName,
+			listSearchByOracle: listSearchByOracle,
+			searchInput:        searchInput,
+			rulingViewport:     rulingViewport,
+			searchViewport:     searchViewport,
+			searchQuery:        "",
+			searchQueryLang:    len(lang),
+			selectedLang:       0,
+			menuSearchIndex:    0,
+			focusInput:         false,
+			focusList:          false,
+			focusViewport:      false,
+		},
+		listStyles: listStyle{
+			selectedDelegate:   selectedDelegate,
+			unselectedDelegate: unselectedDelegate,
+		},
 	}
 }
 

@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"strings"
 
+	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 )
@@ -25,6 +26,8 @@ func (m model) View() tea.View {
 
 	selected := ""
 	switch tuiTabs[m.activeTabIndex].title {
+	case "User":
+		selected = loginView(m)
 	case "Card Search":
 		selected = searchView(m)
 	default:
@@ -47,17 +50,60 @@ func stdView(m model) string {
 	return lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, "NOT INCLUDED YET: "+tuiTabs[m.activeTabIndex].title)
 }
 
-func searchView(m model) string {
-	if m.focusList {
-		m.listSearchByName.SetDelegate(m.selectedDelegate)
-		m.listSearchByOracle.SetDelegate(m.selectedDelegate)
+func loginView(m model) string {
+	var b strings.Builder
+
+	inputs := []textinput.Model{}
+
+	if m.login.registerView {
+		inputs = m.login.registerInput
+		fmt.Fprintf(&b, "%s\n\n", lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, "Sign In"))
 	} else {
-		m.listSearchByName.SetDelegate(m.unselectedDelegate)
-		m.listSearchByOracle.SetDelegate(m.unselectedDelegate)
+		inputs = m.login.loginInput
+		fmt.Fprintf(&b, "%s\n\n", lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, "Login"))
+	}
+
+	for i, in := range inputs {
+		b.WriteString(lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, in.View()))
+		if i < len(inputs)-1 {
+			b.WriteRune('\n')
+		}
+	}
+
+	button := fmt.Sprintf("[ %s ]", m.login.blurredStyle.Render("Submit"))
+	if m.login.focusIndex == len(inputs) {
+		button = m.login.focusedStyle.Render("[ Submit ]")
+	}
+	fmt.Fprintf(&b, "\n\n%s\n", lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, button))
+
+	if m.login.registerView {
+		secondButton := fmt.Sprintf("[ %s ]", m.login.blurredStyle.Render("Login"))
+		if m.login.focusIndex == len(inputs)+1 {
+			secondButton = m.login.focusedStyle.Render("[ Login ]")
+		}
+		fmt.Fprintf(&b, "%s\n\n", lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, secondButton))
+	} else {
+		secondButton := fmt.Sprintf("[ %s ]", m.login.blurredStyle.Render("Sign In"))
+		if m.login.focusIndex == len(inputs)+1 {
+			secondButton = m.login.focusedStyle.Render("[ Sign In ]")
+		}
+		fmt.Fprintf(&b, "%s\n\n", lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, secondButton))
+	}
+
+	return b.String()
+}
+
+func searchView(m model) string {
+	if m.search.focusList {
+		m.search.listSearchByName.SetDelegate(m.listStyles.selectedDelegate)
+		m.search.listSearchByOracle.SetDelegate(m.listStyles.selectedDelegate)
+	} else {
+		m.search.listSearchByName.SetDelegate(m.listStyles.unselectedDelegate)
+		m.search.listSearchByOracle.SetDelegate(m.listStyles.unselectedDelegate)
 	}
 
 	rulings := "\nRulings"
-	if m.focusViewport {
+	if m.search.focusViewport {
 		rulings = (lipgloss.NewStyle().
 			Foreground(lipgloss.Color("117")).
 			Render(rulings))
@@ -69,7 +115,7 @@ func searchView(m model) string {
 
 	la := ""
 	for i, l := range lang {
-		if i == m.selectedLang {
+		if i == m.search.selectedLang {
 			la = fmt.Sprintf("%v [%v]", la, l)
 		} else {
 			la += " " + l
@@ -82,46 +128,46 @@ func searchView(m model) string {
 
 	v := ""
 
-	switch m.menuSearchID {
+	switch m.search.menuSearchIndex {
 	case 0:
-		if len(m.listSearchByName.Items()) == 0 {
-			v = lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, m.searchInput.View()) + "\n" + "\n" + lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, la)
+		if len(m.search.listSearchByName.Items()) == 0 {
+			v = lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, m.search.searchInput.View()) + "\n" + "\n" + lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, la)
 		} else {
-			v = lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, m.searchInput.View()) + "\n" + "\n" + m.listSearchByName.View() + "\n" + lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, la)
+			v = lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, m.search.searchInput.View()) + "\n" + "\n" + m.search.listSearchByName.View() + "\n" + lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, la)
 		}
 	case 1:
 		buffer := ""
-		if m.oracleCard.ManaCost != nil {
-			buffer += *m.oracleCard.ManaCost + "\n"
+		if m.search.oracleCard.ManaCost != nil {
+			buffer += *m.search.oracleCard.ManaCost + "\n"
 		}
-		buffer += m.oracleCard.Name + "\n" + m.oracleCard.TypeLine
-		if m.oracleCard.Power != nil && m.oracleCard.Toughness != nil {
-			buffer += "\n" + *m.oracleCard.Power + "/" + *m.oracleCard.Toughness
+		buffer += m.search.oracleCard.Name + "\n" + m.search.oracleCard.TypeLine
+		if m.search.oracleCard.Power != nil && m.search.oracleCard.Toughness != nil {
+			buffer += "\n" + *m.search.oracleCard.Power + "/" + *m.search.oracleCard.Toughness
 		}
-		if m.oracleCard.Defense != nil {
-			buffer += "\n" + *m.oracleCard.Defense
+		if m.search.oracleCard.Defense != nil {
+			buffer += "\n" + *m.search.oracleCard.Defense
 		}
-		if m.oracleCard.Loyalty != nil {
-			buffer += "\n" + *m.oracleCard.Loyalty
+		if m.search.oracleCard.Loyalty != nil {
+			buffer += "\n" + *m.search.oracleCard.Loyalty
 		}
-		if m.oracleCard.OracleText != nil {
-			buffer += "\n\n" + *m.oracleCard.OracleText
+		if m.search.oracleCard.OracleText != nil {
+			buffer += "\n\n" + *m.search.oracleCard.OracleText
 		}
-		if m.oracleCard.PrintedText != nil {
-			buffer += "\n\n" + *m.oracleCard.PrintedText
+		if m.search.oracleCard.PrintedText != nil {
+			buffer += "\n\n" + *m.search.oracleCard.PrintedText
 		}
-		buffer = fmt.Sprintf("%v\n\nCmc: %v", buffer, m.oracleCard.Cmc)
-		if len(m.oracleCard.ColorIdentity) > 0 {
+		buffer = fmt.Sprintf("%v\n\nCmc: %v", buffer, m.search.oracleCard.Cmc)
+		if len(m.search.oracleCard.ColorIdentity) > 0 {
 			buffer += ", Color Identity: "
-			for i := len(m.oracleCard.ColorIdentity) - 1; i >= 0; i-- {
-				buffer += fmt.Sprintf("{%v}", m.oracleCard.ColorIdentity[i])
+			for i := len(m.search.oracleCard.ColorIdentity) - 1; i >= 0; i-- {
+				buffer += fmt.Sprintf("{%v}", m.search.oracleCard.ColorIdentity[i])
 			}
 		}
-		if m.oracleCard.EdhrecRank != nil {
-			buffer = fmt.Sprintf("%v\n\nEDHREC Rank: %v", buffer, *m.oracleCard.EdhrecRank)
+		if m.search.oracleCard.EdhrecRank != nil {
+			buffer = fmt.Sprintf("%v\n\nEDHREC Rank: %v", buffer, *m.search.oracleCard.EdhrecRank)
 		}
-		if m.oracleCard.GameChanger != nil {
-			if *m.oracleCard.GameChanger {
+		if m.search.oracleCard.GameChanger != nil {
+			if *m.search.oracleCard.GameChanger {
 				buffer += "\n\n" + lipgloss.NewStyle().Foreground(lipgloss.Color("220")).Render("GAMECHANGER")
 			}
 		}
@@ -129,24 +175,24 @@ func searchView(m model) string {
 		buffer = lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, buffer)
 		card := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Width(m.winWidth).Render(buffer)
 		legalities := renderLegalities(m)
-		m.rulingViewport.SetWidth(m.winWidth / 2)
-		m.searchViewport.SetWidth(m.winWidth / 2)
-		if m.oracleCard.Multifaced {
+		m.search.rulingViewport.SetWidth(m.winWidth / 2)
+		m.search.searchViewport.SetWidth(m.winWidth / 2)
+		if m.search.oracleCard.Multifaced {
 			faces := renderMultifacesOracle(m)
-			height := m.listSearchByName.Height() - (lipgloss.Height(buffer) + lipgloss.Height(faces) + lipgloss.Height(legalities))
-			m.rulingViewport.SetHeight(height - 5)
-			m.listSearchByOracle.SetHeight(height - 3)
-			m.searchViewport.SetContent(m.listSearchByOracle.View())
-			m.searchViewport.SetHeight(height - 2)
-			listView := lipgloss.JoinHorizontal(lipgloss.Top, m.searchViewport.View(), rulings+"\n\n"+m.rulingViewport.View())
+			height := m.search.listSearchByName.Height() - (lipgloss.Height(buffer) + lipgloss.Height(faces) + lipgloss.Height(legalities))
+			m.search.rulingViewport.SetHeight(height - 5)
+			m.search.listSearchByOracle.SetHeight(height - 3)
+			m.search.searchViewport.SetContent(m.search.listSearchByOracle.View())
+			m.search.searchViewport.SetHeight(height - 2)
+			listView := lipgloss.JoinHorizontal(lipgloss.Top, m.search.searchViewport.View(), rulings+"\n\n"+m.search.rulingViewport.View())
 			v = card + "\n" + legalities + "\n" + faces + "\n" + listView + "\n\n" + lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, la)
 		} else {
-			height := m.listSearchByName.Height() - (lipgloss.Height(buffer) + lipgloss.Height(legalities))
-			m.rulingViewport.SetHeight(height - 5)
-			m.listSearchByOracle.SetHeight(height - 3)
-			m.searchViewport.SetContent(m.listSearchByOracle.View())
-			m.searchViewport.SetHeight(height - 2)
-			listView := lipgloss.JoinHorizontal(lipgloss.Top, m.searchViewport.View(), rulings+"\n\n"+m.rulingViewport.View())
+			height := m.search.listSearchByName.Height() - (lipgloss.Height(buffer) + lipgloss.Height(legalities))
+			m.search.rulingViewport.SetHeight(height - 5)
+			m.search.listSearchByOracle.SetHeight(height - 3)
+			m.search.searchViewport.SetContent(m.search.listSearchByOracle.View())
+			m.search.searchViewport.SetHeight(height - 2)
+			listView := lipgloss.JoinHorizontal(lipgloss.Top, m.search.searchViewport.View(), rulings+"\n\n"+m.search.rulingViewport.View())
 			v = card + "\n" + legalities + "\n" + listView + "\n\n" + lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, la)
 		}
 	}
@@ -175,7 +221,7 @@ func tabs(m model) string {
 
 func renderLegalities(m model) string {
 	legalities := ""
-	l := m.oracleCard.Legalities
+	l := m.search.oracleCard.Legalities
 	v := reflect.ValueOf(l)
 	t := reflect.TypeOf(l)
 
@@ -211,17 +257,17 @@ func renderLegalities(m model) string {
 
 func renderRulings(m model) string {
 	rulings := ""
-	for i := len(m.oracleCard.Rulings) - 1; i >= 0; i-- {
-		ruleText := lipgloss.Wrap(m.oracleCard.Rulings[i].Comment, (m.winWidth/2)-5, "")
-		rulings = fmt.Sprintf("%v%v\n%v\n\n", rulings, m.oracleCard.Rulings[i].PublishedAt.Format("02.01.2006"), ruleText)
+	for i := len(m.search.oracleCard.Rulings) - 1; i >= 0; i-- {
+		ruleText := lipgloss.Wrap(m.search.oracleCard.Rulings[i].Comment, (m.winWidth/2)-5, "")
+		rulings = fmt.Sprintf("%v%v\n%v\n\n", rulings, m.search.oracleCard.Rulings[i].PublishedAt.Format("02.01.2006"), ruleText)
 	}
 	return rulings
 }
 
 func renderMultifacesOracle(m model) string {
-	bufferStruct := make([]string, len(*m.oracleCard.CardFaces))
-	for i, f := range *m.oracleCard.CardFaces {
-		width := m.winWidth / len(*m.oracleCard.CardFaces)
+	bufferStruct := make([]string, len(*m.search.oracleCard.CardFaces))
+	for i, f := range *m.search.oracleCard.CardFaces {
+		width := m.winWidth / len(*m.search.oracleCard.CardFaces)
 		bufferStruct[i] += f.ManaCost + "\n" + f.Name
 		if f.TypeLine != nil {
 			bufferStruct[i] += "\n" + *f.TypeLine

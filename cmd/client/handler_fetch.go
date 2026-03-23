@@ -20,7 +20,7 @@ func (m model) debounceSearch(id int, query string, langID int) tea.Cmd {
 
 func (m model) fetchCardsByName(query string) tea.Cmd {
 	return func() tea.Msg {
-		endpoint := website + "/cards/search?name=" + url.QueryEscape(query) + "&limit=600" + "&lang=" + lang[m.selectedLang]
+		endpoint := website + "/cards/search?name=" + url.QueryEscape(query) + "&limit=600" + "&lang=" + lang[m.search.selectedLang]
 		resp, err := http.Get(endpoint)
 		if err != nil {
 			return err
@@ -45,7 +45,7 @@ func (m model) fetchCardsByName(query string) tea.Cmd {
 
 func (m model) fetchCardsByOracleID(oracleID string) tea.Cmd {
 	return func() tea.Msg {
-		endpoint := website + "/cards/oracle/" + oracleID + "?limit=600" + "&lang=" + lang[m.selectedLang]
+		endpoint := website + "/cards/oracle/" + oracleID + "?limit=600" + "&lang=" + lang[m.search.selectedLang]
 		resp, err := http.Get(endpoint)
 		if err != nil {
 			return err
