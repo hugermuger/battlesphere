@@ -60,10 +60,10 @@ type TUITab struct {
 }
 
 var tuiTabs = []TUITab{
-	{title: "User"},
 	{title: "Card Search"},
 	{title: "Collection"},
 	{title: "Decks"},
+	{title: "User"},
 }
 
 var lang = []string{
@@ -90,6 +90,7 @@ type model struct {
 	search         searchMenu
 	login          loginMenu
 	listStyles     listStyle
+	user           types.User
 }
 
 type listStyle struct {
@@ -119,11 +120,13 @@ type loginMenu struct {
 	focusedStyle  lipgloss.Style
 	blurredStyle  lipgloss.Style
 	registerView  bool
+	logoutView    bool
 	registerInput []textinput.Model
 	loginInput    []textinput.Model
 	focusIndex    int
 	loggedIn      bool
 	message       string
+	err           string
 }
 
 func initModel() model {
@@ -150,7 +153,6 @@ func initModel() model {
 		switch i {
 		case 0:
 			t.Placeholder = "Username"
-			t.Focus()
 		case 1:
 			t.Placeholder = "Email"
 		case 2:
@@ -185,7 +187,6 @@ func initModel() model {
 		switch i {
 		case 0:
 			t.Placeholder = "Username"
-			t.Focus()
 		case 1:
 			t.Placeholder = "Password"
 			t.EchoMode = textinput.EchoPassword
@@ -249,6 +250,7 @@ func initModel() model {
 			loginInput:    loginInput,
 			focusIndex:    0,
 			registerView:  false,
+			logoutView:    true,
 		},
 		search: searchMenu{
 			listSearchByName:   listSearchByName,
@@ -272,11 +274,20 @@ func initModel() model {
 }
 
 func (m model) Init() tea.Cmd {
+	config, err := loadUserConfig()
+	if err == nil {
+		handlerLogin(config.Password, config.LastUsername, &m)
+	}
 	return textinput.Blink
 }
 
 func main() {
-	if _, err := tea.NewProgram(initModel()).Run(); err != nil {
+	m := initModel()
+	config, err := loadUserConfig()
+	if err == nil && config.Password != "" && config.LastUsername != "" {
+		handlerLogin(config.Password, config.LastUsername, &m)
+	}
+	if _, err := tea.NewProgram(m).Run(); err != nil {
 		log.Fatalf("Error running program: %v", err)
 	}
 }

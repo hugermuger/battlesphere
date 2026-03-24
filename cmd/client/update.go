@@ -2,6 +2,7 @@ package main
 
 import (
 	"charm.land/bubbles/v2/list"
+	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"github.com/hugermuger/battlesphere/internal/types"
 )
@@ -44,12 +45,147 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		switch tuiTabs[m.activeTabIndex].title {
 		case "User":
-			if m.login.registerView {
-				m.login.registerInput[m.login.focusIndex], cmd = m.login.registerInput[m.login.focusIndex].Update(msg)
+			if !m.login.loggedIn {
+				switch msg.String() {
+				case "esc":
+					m.focusTabs = true
+					input := []textinput.Model{}
+					if m.login.registerView {
+						input = m.login.registerInput
+					} else {
+						input = m.login.loginInput
+					}
+					for _, in := range input {
+						in.Blur()
+					}
+
+				case "tab":
+					if m.focusTabs {
+						return m, nil
+					}
+					if m.login.registerView {
+						m.login.registerView = false
+						m.login.loginInput[0].Focus()
+					} else {
+						m.login.registerView = true
+						m.login.registerInput[0].Focus()
+					}
+					m.login.focusIndex = 0
+					return m, nil
+
+				case "enter", "down":
+					if m.focusTabs {
+						m.login.focusIndex = 0
+						m.focusTabs = false
+						if m.login.registerView {
+							m.login.registerInput[0].Focus()
+						} else {
+							m.login.loginInput[0].Focus()
+						}
+						return m, nil
+					}
+					inputList := []textinput.Model{}
+					if m.login.registerView {
+						inputList = m.login.registerInput
+					} else {
+						inputList = m.login.loginInput
+					}
+
+					if msg.String() == "enter" && m.login.focusIndex == len(inputList) {
+						if m.login.registerView {
+							handlerCreateUser(inputList, &m)
+						} else {
+							handlerLogin(m.login.loginInput[1].Value(), m.login.loginInput[0].Value(), &m)
+						}
+						return m, nil
+					}
+					m.login.focusIndex++
+					if m.login.focusIndex > len(inputList)+1 {
+						m.login.focusIndex = 0
+					}
+					if m.login.focusIndex == 0 {
+						inputList[m.login.focusIndex].Focus()
+					} else if m.login.focusIndex < len(inputList) {
+						inputList[m.login.focusIndex-1].Blur()
+						inputList[m.login.focusIndex].Focus()
+					} else if m.login.focusIndex == len(inputList) {
+						inputList[m.login.focusIndex-1].Blur()
+					}
+					return m, nil
+
+				case "up":
+					m.login.focusIndex--
+					if m.login.registerView {
+						if m.login.focusIndex < 0 {
+							m.login.focusIndex = len(m.login.registerInput) + 1
+						}
+						if m.login.focusIndex == len(m.login.registerInput)+1 {
+							m.login.registerInput[0].Blur()
+						} else if m.login.focusIndex < len(m.login.registerInput)-1 {
+							m.login.registerInput[m.login.focusIndex+1].Blur()
+							m.login.registerInput[m.login.focusIndex].Focus()
+						} else if m.login.focusIndex == len(m.login.registerInput)-1 {
+							m.login.registerInput[m.login.focusIndex].Focus()
+						}
+					} else {
+						if m.login.focusIndex < 0 {
+							m.login.focusIndex = len(m.login.loginInput) + 1
+						}
+						if m.login.focusIndex == len(m.login.loginInput)+1 {
+							m.login.loginInput[0].Blur()
+						} else if m.login.focusIndex < len(m.login.loginInput)-1 {
+							m.login.loginInput[m.login.focusIndex+1].Blur()
+							m.login.loginInput[m.login.focusIndex].Focus()
+						} else if m.login.focusIndex == len(m.login.loginInput)-1 {
+							m.login.loginInput[m.login.focusIndex].Focus()
+						}
+					}
+					return m, nil
+				}
+
+				inputList := []textinput.Model{}
+				if m.login.registerView {
+					inputList = m.login.registerInput
+				} else {
+					inputList = m.login.loginInput
+				}
+
+				if m.login.focusIndex < len(inputList) {
+					if m.login.registerView {
+						m.login.registerInput[m.login.focusIndex], cmd = m.login.registerInput[m.login.focusIndex].Update(msg)
+					} else {
+						m.login.loginInput[m.login.focusIndex], cmd = m.login.loginInput[m.login.focusIndex].Update(msg)
+					}
+					return m, cmd
+				}
+				return m, nil
 			} else {
-				m.login.loginInput[m.login.focusIndex], cmd = m.login.loginInput[m.login.focusIndex].Update(msg)
+				switch msg.String() {
+				case "enter":
+					if m.focusTabs {
+						m.focusTabs = false
+						return m, nil
+					}
+					if m.login.logoutView {
+						m.user = types.User{}
+						m.login.loggedIn = false
+						cleanLoginInput(&m)
+						_ = saveUserConfig("", "")
+					}
+				case "esc":
+					m.focusTabs = true
+				case "tab":
+					if m.focusTabs {
+						return m, nil
+					}
+					if m.login.logoutView {
+						m.login.logoutView = false
+					} else {
+						m.login.logoutView = true
+					}
+				}
+				return m, nil
 			}
-			return m, cmd
 
 		case "Card Search":
 			switch msg.String() {

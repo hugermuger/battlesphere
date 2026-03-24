@@ -5,31 +5,49 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 
-	"github.com/hugermuger/battlesphere/internal/types"
+	"charm.land/bubbles/v2/textinput"
 )
 
-func handlerCreateUser(email, userName, password string) (types.User, error) {
+type Config struct {
+	LastUsername string `json:"last_username"`
+	Password     string `json:"password"`
+}
+
+func handlerCreateUser(input []textinput.Model, m *model) {
+	if input[2].Value() != input[3].Value() {
+		m.login.err = "Passwords do not match!"
+		return
+	}
+
 	url := website + "/users"
 	type parameters struct {
 		Password string `json:"password"`
 		UserName string `json:"user_name"`
 		Email    string `json:"email"`
 	}
+	type error struct {
+		Error string `json:"error"`
+	}
+
 	params := parameters{
-		Password: password,
-		UserName: userName,
-		Email:    email,
+		Password: input[2].Value(),
+		UserName: input[0].Value(),
+		Email:    input[1].Value(),
 	}
 
 	jsonData, err := json.Marshal(params)
 	if err != nil {
-		return types.User{}, fmt.Errorf("Internal error: %v", err)
+		m.login.err = fmt.Sprintf("Internal error: %v", err)
+		return
 	}
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {
-		return types.User{}, fmt.Errorf("Internal error: %v", err)
+		m.login.err = fmt.Sprintf("Internal error: %v", err)
+		return
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -37,43 +55,60 @@ func handlerCreateUser(email, userName, password string) (types.User, error) {
 	client := &http.Client{}
 	res, err := client.Do(req)
 	if err != nil {
-		return types.User{}, fmt.Errorf("Internal error: %v", err)
+		m.login.err = fmt.Sprintf("Internal error: %v", err)
+		return
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusCreated {
-		return types.User{}, fmt.Errorf("expected status 201, got %d. Error: %s", res.StatusCode, res.Header.Get("error"))
+		error := error{}
+		decoder := json.NewDecoder(res.Body)
+		_ = decoder.Decode(&error)
+		m.login.err = error.Error
+		return
 	}
 
-	user := types.User{}
 	decoder := json.NewDecoder(res.Body)
-	err = decoder.Decode(&user)
+	err = decoder.Decode(&m.user)
 	if err != nil {
-		return types.User{}, fmt.Errorf("Internal error: %v", err)
+		m.login.err = fmt.Sprintf("Internal error: %v", err)
+		return
 	}
 
-	return user, nil
+	err = saveUserConfig(m.user.UserName, input[2].Value())
+	if err != nil {
+		m.login.err = fmt.Sprintf("Internal error: %v", err)
+		return
+	}
+
+	m.login.loggedIn = true
+	m.login.err = ""
 }
 
-func handlerLogin(userName, password string) (types.User, error) {
+func handlerLogin(password, username string, m *model) {
 	url := website + "/login"
 	type parameters struct {
 		Password string `json:"password"`
 		UserName string `json:"user_name"`
 	}
+	type error struct {
+		Error string `json:"error"`
+	}
 	params := parameters{
 		Password: password,
-		UserName: userName,
+		UserName: username,
 	}
 
 	jsonData, err := json.Marshal(params)
 	if err != nil {
-		return types.User{}, fmt.Errorf("Internal error: %v", err)
+		m.login.err = fmt.Sprintf("Internal error: %v", err)
+		return
 	}
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {
-		return types.User{}, fmt.Errorf("Internal error: %v", err)
+		m.login.err = fmt.Sprintf("Internal error: %v", err)
+		return
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -81,22 +116,87 @@ func handlerLogin(userName, password string) (types.User, error) {
 	client := &http.Client{}
 	res, err := client.Do(req)
 	if err != nil {
-		return types.User{}, fmt.Errorf("Internal error: %v", err)
+		m.login.err = fmt.Sprintf("Internal error: %v", err)
+		return
 	}
 	defer res.Body.Close()
 	if res.StatusCode == http.StatusUnauthorized {
-		return types.User{}, fmt.Errorf("%v", res.Header.Get("error"))
+		error := error{}
+		decoder := json.NewDecoder(res.Body)
+		_ = decoder.Decode(&error)
+		m.login.err = error.Error
+		return
 	}
 	if res.StatusCode != http.StatusOK {
-		return types.User{}, fmt.Errorf("expected status 200, got %d. Error: %s", res.StatusCode, res.Header.Get("error"))
+		error := error{}
+		decoder := json.NewDecoder(res.Body)
+		_ = decoder.Decode(&error)
+		m.login.err = error.Error
+		return
 	}
 
-	user := types.User{}
 	decoder := json.NewDecoder(res.Body)
-	err = decoder.Decode(&user)
+	err = decoder.Decode(&m.user)
 	if err != nil {
-		return types.User{}, fmt.Errorf("Internal error: %v", err)
+		m.login.err = fmt.Sprintf("Internal error: %v", err)
+		return
 	}
 
-	return user, nil
+	err = saveUserConfig(username, password)
+	if err != nil {
+		m.login.err = fmt.Sprintf("Internal error: %v", err)
+		return
+	}
+
+	m.login.loggedIn = true
+	m.login.err = ""
+}
+
+func cleanLoginInput(m *model) {
+	for i, _ := range m.login.loginInput {
+		m.login.loginInput[i].Reset()
+	}
+	for i, _ := range m.login.registerInput {
+		m.login.registerInput[i].Reset()
+	}
+}
+
+func getConfigPath() (string, error) {
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		return "", err
+	}
+	appDir := filepath.Join(dir, "battlesphere")
+	err = os.MkdirAll(appDir, 0755)
+
+	return filepath.Join(appDir, "config.json"), err
+}
+
+func saveUserConfig(username, password string) error {
+	path, err := getConfigPath()
+	if err != nil {
+		return err
+	}
+
+	config := Config{LastUsername: username,
+		Password: password}
+	data, _ := json.MarshalIndent(config, "", "  ")
+
+	return os.WriteFile(path, data, 0644)
+}
+
+func loadUserConfig() (Config, error) {
+	path, err := getConfigPath()
+	if err != nil {
+		return Config{}, err
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return Config{}, err
+	}
+
+	var config Config
+	json.Unmarshal(data, &config)
+	return config, nil
 }

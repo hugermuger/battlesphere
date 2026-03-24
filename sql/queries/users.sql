@@ -8,6 +8,7 @@ VALUES (
     $2,
     $3
 )
+ON CONFLICT DO NOTHING
 RETURNING *;
 
 -- name: GetUserByUserName :one

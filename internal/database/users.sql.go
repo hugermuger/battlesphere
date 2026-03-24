@@ -19,6 +19,7 @@ VALUES (
     $2,
     $3
 )
+ON CONFLICT DO NOTHING
 RETURNING id, created_at, updated_at, email, user_name, hashed_password
 `
 

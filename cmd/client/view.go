@@ -53,44 +53,51 @@ func stdView(m model) string {
 func loginView(m model) string {
 	var b strings.Builder
 
-	inputs := []textinput.Model{}
-
-	if m.login.registerView {
-		inputs = m.login.registerInput
-		fmt.Fprintf(&b, "%s\n\n", lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, "Sign In"))
+	if m.login.loggedIn {
+		fmt.Fprintf(&b, "%s\n\n", lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, fmt.Sprintf("Welcome %v, you are logged in!", m.user.UserName)))
+		if m.focusTabs {
+			fmt.Fprintf(&b, "%s\n\n", lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, m.login.blurredStyle.Render("[ Logout ]")+"        "+m.login.blurredStyle.Render("[ Delete Account ]")))
+		} else if !m.login.logoutView {
+			fmt.Fprintf(&b, "%s\n\n", lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, m.login.blurredStyle.Render("[ Logout ]")+"        "+m.login.focusedStyle.Render("[ Delete Account ]")))
+		} else {
+			fmt.Fprintf(&b, "%s\n\n", lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, m.login.focusedStyle.Render("[ Logout ]")+"        "+m.login.blurredStyle.Render("[ Delete Account ]")))
+		}
 	} else {
-		inputs = m.login.loginInput
-		fmt.Fprintf(&b, "%s\n\n", lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, "Login"))
-	}
+		inputs := []textinput.Model{}
 
-	for i, in := range inputs {
-		b.WriteString(lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, in.View()))
-		if i < len(inputs)-1 {
-			b.WriteRune('\n')
+		if m.login.registerView {
+			inputs = m.login.registerInput
+		} else {
+			inputs = m.login.loginInput
 		}
-	}
 
-	button := fmt.Sprintf("[ %s ]", m.login.blurredStyle.Render("Submit"))
-	if m.login.focusIndex == len(inputs) {
-		button = m.login.focusedStyle.Render("[ Submit ]")
-	}
-	fmt.Fprintf(&b, "\n\n%s\n", lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, button))
-
-	if m.login.registerView {
-		secondButton := fmt.Sprintf("[ %s ]", m.login.blurredStyle.Render("Login"))
-		if m.login.focusIndex == len(inputs)+1 {
-			secondButton = m.login.focusedStyle.Render("[ Login ]")
+		if m.focusTabs {
+			fmt.Fprintf(&b, "%s\n\n", lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, m.login.blurredStyle.Render("[ Login ]")+"        "+m.login.blurredStyle.Render("[ Sign In ]")))
+		} else if m.login.registerView {
+			fmt.Fprintf(&b, "%s\n\n", lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, m.login.blurredStyle.Render("[ Login ]")+"        "+m.login.focusedStyle.Render("[ Sign In ]")))
+		} else {
+			fmt.Fprintf(&b, "%s\n\n", lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, m.login.focusedStyle.Render("[ Login ]")+"        "+m.login.blurredStyle.Render("[ Sign In ]")))
 		}
-		fmt.Fprintf(&b, "%s\n\n", lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, secondButton))
-	} else {
-		secondButton := fmt.Sprintf("[ %s ]", m.login.blurredStyle.Render("Sign In"))
-		if m.login.focusIndex == len(inputs)+1 {
-			secondButton = m.login.focusedStyle.Render("[ Sign In ]")
-		}
-		fmt.Fprintf(&b, "%s\n\n", lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, secondButton))
-	}
 
-	return b.String()
+		for i, in := range inputs {
+			b.WriteString(lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, in.View()))
+			if i < len(inputs)-1 {
+				b.WriteRune('\n')
+			}
+		}
+
+		button := m.login.blurredStyle.Render("[ Submit ]")
+		if m.login.focusIndex == len(inputs) {
+			button = m.login.focusedStyle.Render("[ Submit ]")
+		}
+		fmt.Fprintf(&b, "\n\n%s\n\n", lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, button))
+
+		if m.login.err != "" {
+			fmt.Fprintf(&b, "%s\n\n", lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, lipgloss.NewStyle().Foreground(lipgloss.Red).Render(m.login.err)))
+		}
+
+	}
+	return lipgloss.PlaceHorizontal(m.winWidth, lipgloss.Center, b.String())
 }
 
 func searchView(m model) string {

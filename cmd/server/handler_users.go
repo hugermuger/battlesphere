@@ -1,7 +1,9 @@
 package main
 
 import (
+	"database/sql"
 	"net/http"
+	"net/mail"
 
 	"github.com/gin-gonic/gin"
 	"github.com/hugermuger/battlesphere/internal/auth"
@@ -15,6 +17,7 @@ func (cfg *apiConfig) handlerUsersCreate(c *gin.Context) {
 		UserName string `json:"user_name"`
 		Email    string `json:"email"`
 	}
+
 	type response struct {
 		types.User
 	}
@@ -24,6 +27,22 @@ func (cfg *apiConfig) handlerUsersCreate(c *gin.Context) {
 	if err := c.BindJSON(&params); err != nil {
 		c.Error(err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Couldn't decode parameters"})
+		return
+	}
+
+	if params.Email == "" || params.Password == "" || params.UserName == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Empty Parameter"})
+		return
+	}
+
+	if len(params.Password) < 8 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Password must be 8 characters long"})
+		return
+	}
+
+	_, err := mail.ParseAddress(params.Email)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Mail in wrong format"})
 		return
 	}
 
@@ -39,7 +58,10 @@ func (cfg *apiConfig) handlerUsersCreate(c *gin.Context) {
 		HashedPassword: hashedPassword,
 		UserName:       params.UserName,
 	})
-	if err != nil {
+	if err == sql.ErrNoRows {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Username or Mail does already exist"})
+		return
+	} else if err != nil {
 		c.Error(err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Couldn't create user"})
 		return
