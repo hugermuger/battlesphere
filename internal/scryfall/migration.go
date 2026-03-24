@@ -168,15 +168,21 @@ func SingleCardImport(ctx context.Context, qtx *database.Queries, card types.Scr
 	return nil
 }
 
-func SingleRuleImport(ctx context.Context, qtx *database.Queries, rule types.Ruling) error {
+func SingleRuleImport(ctx context.Context, qtx *database.Queries, rule types.ScryfallRuling) error {
+	layout := "2006-01-02"
+	publishedAt, err := time.Parse(layout, rule.PublishedAt)
+	if err != nil {
+		return err
+	}
+
 	ruleParams := database.InsertRulingsParams{
 		OracleID:    rule.OracleID,
 		Source:      dbutils.ToNullString(rule.Source),
-		PublishedAt: rule.PublishedAt,
+		PublishedAt: publishedAt,
 		Comment:     rule.Comment,
 	}
 
-	err := qtx.InsertRulings(ctx, ruleParams)
+	err = qtx.InsertRulings(ctx, ruleParams)
 	if err != nil {
 		return err
 	}
@@ -243,4 +249,3 @@ func toNullImage(images *types.ScryfallImages, size string) sql.NullString {
 		return sql.NullString{Valid: false}
 	}
 }
-

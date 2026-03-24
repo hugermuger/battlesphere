@@ -116,6 +116,15 @@ type Legality struct {
 	UpdatedAt       time.Time
 }
 
+type RefreshToken struct {
+	Token     string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	UserID    uuid.UUID
+	ExpiresAt time.Time
+	RevokedAt sql.NullTime
+}
+
 type Ruling struct {
 	OracleID    uuid.UUID
 	Source      sql.NullString

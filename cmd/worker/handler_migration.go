@@ -172,11 +172,11 @@ func (cfg *apiConfig) handlerBulkImportRulings() error {
 		return err
 	}
 
-	var batch []types.Ruling
+	var batch []types.ScryfallRuling
 	count := 0
 
 	for decoder.More() {
-		var rule types.Ruling
+		var rule types.ScryfallRuling
 		err := decoder.Decode(&rule)
 		if err != nil {
 			log.Printf("Decode error: %v", err)
@@ -192,7 +192,7 @@ func (cfg *apiConfig) handlerBulkImportRulings() error {
 			}
 			count += len(batch)
 			log.Printf("Imported %v rules...", count)
-			batch = make([]types.Ruling, 0, batchSize)
+			batch = make([]types.ScryfallRuling, 0, batchSize)
 		}
 	}
 
@@ -218,7 +218,7 @@ func (cfg *apiConfig) handlerBulkImportRulings() error {
 	return nil
 }
 
-func (cfg *apiConfig) handlerBatchImportRulings(rules []types.Ruling) error {
+func (cfg *apiConfig) handlerBatchImportRulings(rules []types.ScryfallRuling) error {
 	tx, err := cfg.dbConn.Begin()
 	if err != nil {
 		return err

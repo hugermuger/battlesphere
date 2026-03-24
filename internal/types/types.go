@@ -93,6 +93,13 @@ type ScryfallBulkURLs struct {
 	} `json:"data"`
 }
 
+type ScryfallRuling struct {
+	OracleID    uuid.UUID `json:"oracle_id"`
+	Source      *string   `json:"source"`
+	PublishedAt string    `json:"published_at"`
+	Comment     string    `json:"comment"`
+}
+
 // Shared types
 type Legalities struct {
 	Standard        *string `json:"standard"`

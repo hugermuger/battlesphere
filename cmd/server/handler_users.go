@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"net/http"
 	"net/mail"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/hugermuger/battlesphere/internal/auth"
@@ -85,6 +86,8 @@ func (cfg *apiConfig) handlerLogin(c *gin.Context) {
 	}
 	type response struct {
 		types.User
+		Token        string `json:"token"`
+		RefreshToken string `json:"refresh_token"`
 	}
 
 	params := parameters{}
@@ -102,13 +105,32 @@ func (cfg *apiConfig) handlerLogin(c *gin.Context) {
 	}
 
 	exists, err := auth.CheckPasswordHash(params.Password, user.HashedPassword)
-	if err != nil {
-		c.Error(err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Couldn't check hashed password"})
+	if err != nil || !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Wrong password or username"})
 		return
 	}
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Wrong password"})
+
+	accessToken, err := auth.MakeJWT(
+		user.ID,
+		cfg.jwtSecret,
+		time.Hour,
+	)
+	if err != nil {
+		c.Error(err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Couldn't create access JWT"})
+		return
+	}
+
+	refreshToken := auth.MakeRefreshToken()
+
+	_, err = cfg.db.CreateRefreshToken(c.Request.Context(), database.CreateRefreshTokenParams{
+		UserID:    user.ID,
+		Token:     refreshToken,
+		ExpiresAt: time.Now().UTC().Add(time.Hour * 24 * 60),
+	})
+	if err != nil {
+		c.Error(err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Couldn't save refresh token"})
 		return
 	}
 
@@ -120,5 +142,59 @@ func (cfg *apiConfig) handlerLogin(c *gin.Context) {
 			Email:     user.Email,
 			UserName:  user.UserName,
 		},
+		Token:        accessToken,
+		RefreshToken: refreshToken,
 	})
+}
+
+func (cfg *apiConfig) handlerRefresh(c *gin.Context) {
+	type response struct {
+		Token    string `json:"token"`
+		UserName string `json:"user_name"`
+	}
+
+	refreshToken, err := auth.GetBearerToken(c.Request.Header)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Couldn't find token"})
+		return
+	}
+
+	user, err := cfg.db.GetUserFromRefreshToken(c.Request.Context(), refreshToken)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Couldn't get user for refresh token"})
+		return
+	}
+
+	accessToken, err := auth.MakeJWT(
+		user.ID,
+		cfg.jwtSecret,
+		time.Hour,
+	)
+	if err != nil {
+		c.Error(err)
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Couldn't validate token"})
+		return
+	}
+
+	c.JSON(http.StatusOK, response{
+		Token:    accessToken,
+		UserName: user.UserName,
+	})
+}
+
+func (cfg *apiConfig) handlerRevoke(c *gin.Context) {
+	refreshToken, err := auth.GetBearerToken(c.Request.Header)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Couldn't find token"})
+		return
+	}
+
+	_, err = cfg.db.RevokeRefreshToken(c.Request.Context(), refreshToken)
+	if err != nil {
+		c.Error(err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Couldn't revoke session"})
+		return
+	}
+
+	c.Status(http.StatusNoContent)
 }

@@ -81,6 +81,9 @@ var lang = []string{
 }
 
 type model struct {
+	jwtToken       string
+	refreshToken   string
+	username       string
 	activeTabIndex int
 	winWidth       int
 	isTyping       bool
@@ -90,7 +93,6 @@ type model struct {
 	search         searchMenu
 	login          loginMenu
 	listStyles     listStyle
-	user           types.User
 }
 
 type listStyle struct {
@@ -117,16 +119,17 @@ type searchMenu struct {
 }
 
 type loginMenu struct {
-	focusedStyle  lipgloss.Style
-	blurredStyle  lipgloss.Style
-	registerView  bool
-	logoutView    bool
-	registerInput []textinput.Model
-	loginInput    []textinput.Model
-	focusIndex    int
-	loggedIn      bool
-	message       string
-	err           string
+	focusedStyle   lipgloss.Style
+	blurredStyle   lipgloss.Style
+	registerView   bool
+	logoutView     bool
+	registerInput  []textinput.Model
+	loginInput     []textinput.Model
+	focusIndex     int
+	loggedIn       bool
+	message        string
+	err            string
+	registerSucces bool
 }
 
 func initModel() model {
@@ -244,13 +247,14 @@ func initModel() model {
 		focusTabs:      true,
 		searching:      true,
 		login: loginMenu{
-			blurredStyle:  blurredStyle,
-			focusedStyle:  focusedStyle,
-			registerInput: registerInput,
-			loginInput:    loginInput,
-			focusIndex:    0,
-			registerView:  false,
-			logoutView:    true,
+			blurredStyle:   blurredStyle,
+			focusedStyle:   focusedStyle,
+			registerInput:  registerInput,
+			loginInput:     loginInput,
+			focusIndex:     0,
+			registerView:   false,
+			logoutView:     true,
+			registerSucces: false,
 		},
 		search: searchMenu{
 			listSearchByName:   listSearchByName,
@@ -274,18 +278,15 @@ func initModel() model {
 }
 
 func (m model) Init() tea.Cmd {
-	config, err := loadUserConfig()
-	if err == nil {
-		handlerLogin(config.Password, config.LastUsername, &m)
-	}
 	return textinput.Blink
 }
 
 func main() {
 	m := initModel()
 	config, err := loadUserConfig()
-	if err == nil && config.Password != "" && config.LastUsername != "" {
-		handlerLogin(config.Password, config.LastUsername, &m)
+	if err == nil && config.LastToken != "" {
+		m.refreshToken = config.LastToken
+		handlerRefresh(config.LastToken, &m)
 	}
 	if _, err := tea.NewProgram(m).Run(); err != nil {
 		log.Fatalf("Error running program: %v", err)

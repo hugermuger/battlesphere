@@ -16,6 +16,7 @@ type Querier interface {
 	CountCardsByNameList(ctx context.Context, arg CountCardsByNameListParams) (int64, error)
 	CountCardsByNameListEng(ctx context.Context, dollar_1 sql.NullString) (int64, error)
 	CountCardsByOracleIDList(ctx context.Context, arg CountCardsByOracleIDListParams) (int64, error)
+	CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) (RefreshToken, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	DoesLangExist(ctx context.Context, lang string) (string, error)
 	GetCardByID(ctx context.Context, id uuid.UUID) (Card, error)
@@ -24,11 +25,13 @@ type Querier interface {
 	GetOracleRulings(ctx context.Context, oracleID uuid.UUID) ([]Ruling, error)
 	GetSyncState(ctx context.Context, key string) (time.Time, error)
 	GetUserByUserName(ctx context.Context, userName string) (User, error)
+	GetUserFromRefreshToken(ctx context.Context, token string) (User, error)
 	InsertCard(ctx context.Context, arg InsertCardParams) error
 	InsertCardFace(ctx context.Context, arg InsertCardFaceParams) error
 	InsertLegality(ctx context.Context, arg InsertLegalityParams) error
 	InsertRulings(ctx context.Context, arg InsertRulingsParams) error
 	InsertSyncState(ctx context.Context, key string) error
+	RevokeRefreshToken(ctx context.Context, token string) (RefreshToken, error)
 	SearchCardByOracleID(ctx context.Context, arg SearchCardByOracleIDParams) (Card, error)
 	SearchCardsByNameList(ctx context.Context, arg SearchCardsByNameListParams) ([]SearchCardsByNameListRow, error)
 	SearchCardsByNameListEng(ctx context.Context, arg SearchCardsByNameListEngParams) ([]SearchCardsByNameListEngRow, error)

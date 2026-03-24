@@ -49,14 +49,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				switch msg.String() {
 				case "esc":
 					m.focusTabs = true
-					input := []textinput.Model{}
 					if m.login.registerView {
-						input = m.login.registerInput
+						for i, _ := range m.login.registerInput {
+							m.login.registerInput[i].Blur()
+						}
 					} else {
-						input = m.login.loginInput
-					}
-					for _, in := range input {
-						in.Blur()
+						for i, _ := range m.login.loginInput {
+							m.login.loginInput[i].Blur()
+						}
 					}
 
 				case "tab":
@@ -100,7 +100,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						return m, nil
 					}
 					m.login.focusIndex++
-					if m.login.focusIndex > len(inputList)+1 {
+					if m.login.focusIndex > len(inputList) {
 						m.login.focusIndex = 0
 					}
 					if m.login.focusIndex == 0 {
@@ -117,9 +117,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.login.focusIndex--
 					if m.login.registerView {
 						if m.login.focusIndex < 0 {
-							m.login.focusIndex = len(m.login.registerInput) + 1
+							m.login.focusIndex = len(m.login.registerInput)
 						}
-						if m.login.focusIndex == len(m.login.registerInput)+1 {
+						if m.login.focusIndex == len(m.login.registerInput) {
 							m.login.registerInput[0].Blur()
 						} else if m.login.focusIndex < len(m.login.registerInput)-1 {
 							m.login.registerInput[m.login.focusIndex+1].Blur()
@@ -129,9 +129,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						}
 					} else {
 						if m.login.focusIndex < 0 {
-							m.login.focusIndex = len(m.login.loginInput) + 1
+							m.login.focusIndex = len(m.login.loginInput)
 						}
-						if m.login.focusIndex == len(m.login.loginInput)+1 {
+						if m.login.focusIndex == len(m.login.loginInput) {
 							m.login.loginInput[0].Blur()
 						} else if m.login.focusIndex < len(m.login.loginInput)-1 {
 							m.login.loginInput[m.login.focusIndex+1].Blur()
@@ -167,10 +167,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						return m, nil
 					}
 					if m.login.logoutView {
-						m.user = types.User{}
-						m.login.loggedIn = false
-						cleanLoginInput(&m)
-						_ = saveUserConfig("", "")
+						handlerLogout(m.refreshToken, &m)
 					}
 				case "esc":
 					m.focusTabs = true
