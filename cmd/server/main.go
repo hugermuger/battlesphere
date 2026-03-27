@@ -11,7 +11,7 @@ import (
 )
 
 type apiConfig struct {
-	db        database.Querier
+	db        *database.Queries
 	dbConn    *sql.DB
 	jwtSecret string
 }
@@ -57,5 +57,7 @@ func main() {
 	router.GET("/cards/oracle/:id", cfg.handlerCardsByOracleID)
 	router.GET("/cards/:id", cfg.handlerCardByID)
 	router.GET("/rulings/:id", cfg.handlerRulings)
+
+	router.POST("/collections/import", cfg.handlerImportCollection)
 	router.Run(":" + port)
 }

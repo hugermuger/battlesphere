@@ -89,6 +89,45 @@ type CardFace struct {
 	UpdatedAt       time.Time
 }
 
+type Collection struct {
+	ID            uuid.UUID
+	UserID        uuid.UUID
+	FolderID      uuid.NullUUID
+	ScryfallID    uuid.UUID
+	PurchaseDate  time.Time
+	PurchasePrice float64
+	Finish        string
+	Condition     string
+	CreatedAt     time.Time
+}
+
+type Deck struct {
+	ID        uuid.UUID
+	UserID    uuid.NullUUID
+	DeckName  string
+	Format    string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+type DeckEntry struct {
+	ID           uuid.UUID
+	DeckID       uuid.NullUUID
+	OracleID     uuid.UUID
+	ScryfallID   []uuid.UUID
+	Commander    bool
+	CollectionID uuid.NullUUID
+	CreatedAt    time.Time
+}
+
+type Folder struct {
+	ID         uuid.UUID
+	UserID     uuid.NullUUID
+	FolderName string
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+}
+
 type Legality struct {
 	CardID          uuid.UUID
 	Standard        sql.NullString

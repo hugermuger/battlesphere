@@ -13,6 +13,7 @@ import (
 )
 
 type Querier interface {
+	AddCardToCollections(ctx context.Context, arg AddCardToCollectionsParams) error
 	CountCardsByNameList(ctx context.Context, arg CountCardsByNameListParams) (int64, error)
 	CountCardsByNameListEng(ctx context.Context, dollar_1 sql.NullString) (int64, error)
 	CountCardsByOracleIDList(ctx context.Context, arg CountCardsByOracleIDListParams) (int64, error)
@@ -22,6 +23,7 @@ type Querier interface {
 	GetCardByID(ctx context.Context, id uuid.UUID) (Card, error)
 	GetCardFaces(ctx context.Context, cardID uuid.UUID) ([]CardFace, error)
 	GetCardLegalties(ctx context.Context, cardID uuid.UUID) (Legality, error)
+	GetOneUniqueCard(ctx context.Context, arg GetOneUniqueCardParams) (uuid.UUID, error)
 	GetOracleRulings(ctx context.Context, oracleID uuid.UUID) ([]Ruling, error)
 	GetSyncState(ctx context.Context, key string) (time.Time, error)
 	GetUserByUserName(ctx context.Context, userName string) (User, error)
