@@ -36,7 +36,7 @@ CREATE TABLE deck_entries (
     oracle_id UUID NOT NULL,
     scryfall_id UUID[],
     commander BOOLEAN NOT NULL DEFAULT false,
-    collection_id UUID REFERENCES collections(id) ON DELETE CASCADE,
+    collection_id UUID REFERENCES collections(id) ON DELETE SET NULL,
     created_at TIMESTAMP NOT NULL
 );
 

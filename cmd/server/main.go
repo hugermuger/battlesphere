@@ -6,14 +6,23 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/hugermuger/battlesphere/internal/database"
 	"github.com/joho/godotenv"
 )
 
 type apiConfig struct {
-	db        *database.Queries
-	dbConn    *sql.DB
-	jwtSecret string
+	db         *database.Queries
+	dbConn     *sql.DB
+	jwtSecret  string
+	importCues map[uuid.UUID]importCue
+}
+
+type importCue struct {
+	Message  string     `json:"message"`
+	Code     int        `json:"code"`
+	Progress int        `json:"progress"`
+	Missing  [][]string `json:"missing"`
 }
 
 func main() {
@@ -35,13 +44,15 @@ func main() {
 		log.Fatalf("Error opening database: %s", err)
 	}
 	defer dbConn.Close()
+	importCues := make(map[uuid.UUID]importCue)
 
 	dbQueries := database.New(dbConn)
 
 	cfg := apiConfig{
-		db:        dbQueries,
-		dbConn:    dbConn,
-		jwtSecret: jwtSecret,
+		db:         dbQueries,
+		dbConn:     dbConn,
+		jwtSecret:  jwtSecret,
+		importCues: importCues,
 	}
 
 	router := gin.Default()
@@ -58,6 +69,7 @@ func main() {
 	router.GET("/cards/:id", cfg.handlerCardByID)
 	router.GET("/rulings/:id", cfg.handlerRulings)
 
+	router.GET("/cue/:id", cfg.handlerImportStatus)
 	router.POST("/collections/import", cfg.handlerImportCollection)
 	router.Run(":" + port)
 }
