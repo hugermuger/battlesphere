@@ -6,6 +6,7 @@ import (
 	"encoding/csv"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -166,4 +167,10 @@ func (cfg *apiConfig) importCollection(f []byte, userID, cueID uuid.UUID, format
 	importCue.Code = http.StatusCreated
 	importCue.Message = "Finished successful"
 	cfg.importCues[cueID] = importCue
+	go cfg.deleteCue(cueID)
+}
+
+func (cfg *apiConfig) deleteCue(cueID uuid.UUID) {
+	time.Sleep(10000)
+	delete(cfg.importCues, cueID)
 }

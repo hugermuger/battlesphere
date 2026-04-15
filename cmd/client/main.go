@@ -2,7 +2,9 @@ package main
 
 import (
 	"log"
+	"os"
 
+	"charm.land/bubbles/v2/filepicker"
 	"charm.land/bubbles/v2/list"
 	"charm.land/bubbles/v2/textinput"
 	"charm.land/bubbles/v2/viewport"
@@ -64,6 +66,7 @@ var tuiTabs = []TUITab{
 	{title: "Collection"},
 	{title: "Decks"},
 	{title: "User"},
+	{title: "Import"},
 }
 
 var lang = []string{
@@ -93,6 +96,12 @@ type model struct {
 	search         searchMenu
 	login          loginMenu
 	listStyles     listStyle
+	fp             filepickerModel
+}
+
+type filepickerModel struct {
+	model        filepicker.Model
+	selectedFile string
 }
 
 type listStyle struct {
@@ -278,11 +287,22 @@ func initModel() model {
 }
 
 func (m model) Init() tea.Cmd {
-	return textinput.Blink
+	return tea.Batch(textinput.Blink, m.fp.model.Init())
 }
 
 func main() {
+	fp := filepicker.New()
+	fp.AllowedTypes = []string{".csv"}
+	fp.AutoHeight = false
+	home, err := os.UserHomeDir()
+	if err != nil {
+		fp.CurrentDirectory = "."
+	} else {
+		fp.CurrentDirectory = home
+	}
 	m := initModel()
+	m.fp.model = fp
+
 	config, err := loadUserConfig()
 	if err == nil && config.LastToken != "" {
 		m.refreshToken = config.LastToken

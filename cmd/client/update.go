@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+
 	"charm.land/bubbles/v2/list"
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
@@ -30,11 +32,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.activeTabIndex >= len(tuiTabs) {
 					m.activeTabIndex = 0
 				}
+				return m, nil
 			case "left":
 				m.activeTabIndex--
 				if m.activeTabIndex < 0 {
 					m.activeTabIndex = len(tuiTabs) - 1
 				}
+				return m, nil
 			}
 		}
 
@@ -352,6 +356,33 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 			return m, cmd
+
+		case "Import":
+			if m.focusTabs {
+				switch msg.String() {
+				case "enter", "down":
+					m.focusTabs = false
+					home, err := os.UserHomeDir()
+					if err != nil {
+						m.fp.model.CurrentDirectory = "."
+					} else {
+						m.fp.model.CurrentDirectory = home
+					}
+					return m, m.Init()
+				}
+			} else {
+				switch msg.String() {
+				case "esc":
+					m.focusTabs = true
+					return m, nil
+				}
+				m.fp.model, cmd = m.fp.model.Update(msg)
+				if didSelect, path := m.fp.model.DidSelectFile(msg); didSelect {
+					m.fp.selectedFile = path
+					m.focusTabs = true
+				}
+				return m, cmd
+			}
 		}
 
 	case debounceMsg:
@@ -393,6 +424,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case error:
 		m.err = msg
 		return m, nil
+	}
+
+	if tuiTabs[m.activeTabIndex].title == "Import" {
+		m.fp.model, cmd = m.fp.model.Update(msg)
 	}
 
 	return m, cmd
