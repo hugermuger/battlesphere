@@ -6,6 +6,7 @@ import (
 	"encoding/csv"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -69,16 +70,17 @@ func (cfg *apiConfig) handlerImportStatus(c *gin.Context) {
 
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		c.Error(err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "wrong UUID format"})
 		return
 	}
 
-	if cfg.importCues[id].Code == 302 || cfg.importCues[id].Code == 201 {
-		c.JSON(cfg.importCues[id].Code, cfg.importCues[id])
-	} else {
-		c.JSON(cfg.importCues[id].Code, gin.H{"error": cfg.importCues[id].Message})
+	cue, ok := cfg.importCues[id]
+	if !ok {
+		c.JSON(http.StatusNotFound, gin.H{"error": "cue not found"})
+		return
 	}
+
+	c.JSON(http.StatusOK, cue)
 }
 
 func (cfg *apiConfig) importCollection(f []byte, userID, cueID uuid.UUID, formatName string) {
@@ -101,23 +103,35 @@ func (cfg *apiConfig) importCollection(f []byte, userID, cueID uuid.UUID, format
 	defer tx.Rollback()
 
 	reader := csv.NewReader(bytes.NewReader(f))
+	reader.FieldsPerRecord = -1
+	reader.LazyQuotes = true
 
 	if formatName == "dragon_shield" {
-		if _, err := reader.Read(); err != nil {
+		line, err := reader.Read()
+		if err != nil {
 			importCue.Code = http.StatusBadRequest
 			importCue.Message = "Couldn't read csv"
 			cfg.importCues[cueID] = importCue
 			return
 		}
-		if _, err := reader.Read(); err != nil {
-			importCue.Code = http.StatusBadRequest
-			importCue.Message = "Couldn't read csv"
-			cfg.importCues[cueID] = importCue
-			return
+
+		if len(line) == 1 && strings.HasPrefix(line[0], "sep=") {
+			sep := strings.TrimPrefix(line[0], "sep=")
+			if len(sep) > 0 {
+				reader.Comma = rune(sep[0])
+			}
+			if _, err := reader.Read(); err != nil {
+				importCue.Code = http.StatusBadRequest
+				importCue.Message = "Couldn't read header"
+				cfg.importCues[cueID] = importCue
+				return
+			}
 		}
 	}
 
 	qtx := cfg.db.WithTx(tx)
+
+	folderCache := make(map[string]uuid.UUID)
 
 	for {
 		line, err := reader.Read()
@@ -132,24 +146,57 @@ func (cfg *apiConfig) importCollection(f []byte, userID, cueID uuid.UUID, format
 		}
 
 		params := database.AddCardToCollectionsParams{}
+		quantity := 1
+		folderName := ""
 
 		if formatName == "dragon_shield" {
-			params, err = mapDragonShield(line, cfg, context.Background())
+			params, quantity, folderName, err = mapDragonShield(line, cfg, context.Background())
 			if err != nil {
-				importCue.Missing = append(importCue.Missing, line)
-				cfg.importCues[cueID] = importCue
-				continue
+				line[9] = "English"
+				params, quantity, folderName, err = mapDragonShield(line, cfg, context.Background())
+				if err != nil {
+					importCue.Missing = append(importCue.Missing, line)
+					cfg.importCues[cueID] = importCue
+					continue
+				}
+			}
+		}
+
+		if folderName != "" {
+			if folderID, ok := folderCache[folderName]; ok {
+				params.FolderID = uuid.NullUUID{UUID: folderID, Valid: true}
+			} else {
+				dbFolder, err := qtx.GetFolderByUserAndName(context.Background(), database.GetFolderByUserAndNameParams{
+					UserID:     uuid.NullUUID{UUID: userID, Valid: true},
+					FolderName: folderName,
+				})
+				if err != nil {
+					dbFolder, err = qtx.CreateFolder(context.Background(), database.CreateFolderParams{
+						UserID:     uuid.NullUUID{UUID: userID, Valid: true},
+						FolderName: folderName,
+					})
+					if err != nil {
+						importCue.Code = http.StatusInternalServerError
+						importCue.Message = "Couldn't create folder in DB"
+						cfg.importCues[cueID] = importCue
+						return
+					}
+				}
+				folderCache[folderName] = dbFolder.ID
+				params.FolderID = uuid.NullUUID{UUID: dbFolder.ID, Valid: true}
 			}
 		}
 
 		params.UserID = userID
 
-		err = qtx.AddCardToCollections(context.Background(), params)
-		if err != nil {
-			importCue.Code = http.StatusInternalServerError
-			importCue.Message = "Couldn't add card to DB"
-			cfg.importCues[cueID] = importCue
-			return
+		for i := 0; i < quantity; i++ {
+			err = qtx.AddCardToCollections(context.Background(), params)
+			if err != nil {
+				importCue.Code = http.StatusInternalServerError
+				importCue.Message = "Couldn't add card to DB"
+				cfg.importCues[cueID] = importCue
+				return
+			}
 		}
 
 		importCue.Progress++
@@ -165,12 +212,12 @@ func (cfg *apiConfig) importCollection(f []byte, userID, cueID uuid.UUID, format
 	}
 
 	importCue.Code = http.StatusCreated
-	importCue.Message = "Finished successful"
+	importCue.Message = "Finished successful!"
 	cfg.importCues[cueID] = importCue
 	go cfg.deleteCue(cueID)
 }
 
 func (cfg *apiConfig) deleteCue(cueID uuid.UUID) {
-	time.Sleep(10000)
+	time.Sleep(time.Minute * 10)
 	delete(cfg.importCues, cueID)
 }

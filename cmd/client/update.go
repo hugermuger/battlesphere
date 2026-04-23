@@ -17,6 +17,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.winWidth = msg.Width
 		m.search.listSearchByName.SetSize(msg.Width, msg.Height-10)
 		m.search.listSearchByOracle.SetSize(msg.Width, msg.Height-10)
+		m.filepicker.model.SetHeight(msg.Height - 10)
 		switch tuiTabs[m.activeTabIndex].title {
 		case "Card Search":
 			if len(m.search.oracleCard.Rulings) > 0 {
@@ -362,28 +363,81 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				switch msg.String() {
 				case "enter", "down":
 					m.focusTabs = false
-					home, err := os.UserHomeDir()
-					if err != nil {
-						m.fp.model.CurrentDirectory = "."
-					} else {
-						m.fp.model.CurrentDirectory = home
-					}
-					return m, m.Init()
 				}
 			} else {
 				switch msg.String() {
+				case "backspace":
+					m.focusTabs = true
+				case "right", "tab":
+					m.filepicker.focusIndex++
+					if m.filepicker.focusIndex > 1 {
+						m.filepicker.focusIndex = 0
+					}
+				case "left", "shift+tab":
+					m.filepicker.focusIndex--
+					if m.filepicker.focusIndex < 0 {
+						m.filepicker.focusIndex = 1
+					}
+				case "enter":
+					if !m.filepicker.collectionFilepicker && m.filepicker.focusIndex == 0 {
+						m.filepicker.collectionFilepicker = true
+						home, err := os.UserHomeDir()
+						if err != nil {
+							m.filepicker.model.CurrentDirectory = "."
+						} else {
+							m.filepicker.model.CurrentDirectory = home
+						}
+						return m, m.Init()
+					}
 				case "esc":
 					m.focusTabs = true
 					return m, nil
 				}
-				m.fp.model, cmd = m.fp.model.Update(msg)
-				if didSelect, path := m.fp.model.DidSelectFile(msg); didSelect {
-					m.fp.selectedFile = path
-					m.focusTabs = true
+				if m.filepicker.collectionFilepicker {
+					m.filepicker.model, cmd = m.filepicker.model.Update(msg)
+					if didSelect, path := m.filepicker.model.DidSelectFile(msg); didSelect {
+						m.filepicker.selectedFile = path
+						m.filepicker.collectionFilepicker = false
+						m.filepicker.collectionImport = true
+						m.filepicker.err = ""
+						m.filepicker.status = "Uploading..."
+						return m, m.doImportCollectionCmd()
+					}
+					return m, cmd
 				}
-				return m, cmd
 			}
 		}
+
+	case importStatusMsg:
+		if msg.isError {
+			m.filepicker.err = msg.err
+			m.filepicker.collectionImport = false
+			return m, nil
+		}
+		m.filepicker.status = msg.status
+		m.filepicker.progress = msg.progress
+		m.filepicker.missing = msg.missing
+
+		if msg.cue != "" {
+			m.filepicker.cue = msg.cue
+		}
+
+		if msg.isDone {
+			m.filepicker.collectionImport = false
+			saveMsg := m.saveMissingCards()
+			if saveMsg != "" {
+				m.filepicker.status += " " + saveMsg
+			}
+			return m, nil
+		}
+
+		return m, waitTick()
+
+	case tickMsg:
+		if m.filepicker.collectionImport && m.filepicker.cue != "" {
+			return m, m.checkImportStatusCmd(m.filepicker.cue)
+		}
+		return m, nil
 
 	case debounceMsg:
 		switch tuiTabs[m.activeTabIndex].title {
@@ -427,7 +481,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	if tuiTabs[m.activeTabIndex].title == "Import" {
-		m.fp.model, cmd = m.fp.model.Update(msg)
+		m.filepicker.model, cmd = m.filepicker.model.Update(msg)
 	}
 
 	return m, cmd

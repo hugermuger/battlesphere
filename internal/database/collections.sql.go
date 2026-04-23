@@ -49,3 +49,56 @@ func (q *Queries) AddCardToCollections(ctx context.Context, arg AddCardToCollect
 	)
 	return err
 }
+
+const createFolder = `-- name: CreateFolder :one
+INSERT INTO folders (id, user_id, folder_name, created_at, updated_at)
+VALUES (
+    gen_random_uuid(),
+    $1,
+    $2,
+    NOW(),
+    NOW()
+)
+RETURNING id, user_id, folder_name, created_at, updated_at
+`
+
+type CreateFolderParams struct {
+	UserID     uuid.NullUUID
+	FolderName string
+}
+
+func (q *Queries) CreateFolder(ctx context.Context, arg CreateFolderParams) (Folder, error) {
+	row := q.db.QueryRowContext(ctx, createFolder, arg.UserID, arg.FolderName)
+	var i Folder
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.FolderName,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getFolderByUserAndName = `-- name: GetFolderByUserAndName :one
+SELECT id, user_id, folder_name, created_at, updated_at FROM folders
+WHERE user_id = $1 AND folder_name = $2
+`
+
+type GetFolderByUserAndNameParams struct {
+	UserID     uuid.NullUUID
+	FolderName string
+}
+
+func (q *Queries) GetFolderByUserAndName(ctx context.Context, arg GetFolderByUserAndNameParams) (Folder, error) {
+	row := q.db.QueryRowContext(ctx, getFolderByUserAndName, arg.UserID, arg.FolderName)
+	var i Folder
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.FolderName,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}

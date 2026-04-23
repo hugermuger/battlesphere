@@ -102,10 +102,17 @@ WHERE id = $1;
 -- name: GetOneUniqueCard :one
 SELECT id
 FROM cards
-WHERE name = $1
+WHERE name ILIKE '%' || $1 || '%'
     AND set_code = $2
     AND collector_number = $3
     AND lang = $4;
+
+-- name: GetOneUniqueCardTheList :one
+SELECT id
+FROM cards
+WHERE name ILIKE '%' || $1 || '%'
+    AND set_code = $2
+    AND lang = $3;
 
 -- name: GetCardLegalties :one
 SELECT * FROM legalities WHERE card_id = $1;

@@ -239,14 +239,14 @@ func (q *Queries) GetCardLegalties(ctx context.Context, cardID uuid.UUID) (Legal
 const getOneUniqueCard = `-- name: GetOneUniqueCard :one
 SELECT id
 FROM cards
-WHERE name = $1
+WHERE name ILIKE '%' || $1 || '%'
     AND set_code = $2
     AND collector_number = $3
     AND lang = $4
 `
 
 type GetOneUniqueCardParams struct {
-	Name            string
+	Column1         sql.NullString
 	SetCode         string
 	CollectorNumber string
 	Lang            string
@@ -254,11 +254,32 @@ type GetOneUniqueCardParams struct {
 
 func (q *Queries) GetOneUniqueCard(ctx context.Context, arg GetOneUniqueCardParams) (uuid.UUID, error) {
 	row := q.db.QueryRowContext(ctx, getOneUniqueCard,
-		arg.Name,
+		arg.Column1,
 		arg.SetCode,
 		arg.CollectorNumber,
 		arg.Lang,
 	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
+const getOneUniqueCardTheList = `-- name: GetOneUniqueCardTheList :one
+SELECT id
+FROM cards
+WHERE name ILIKE '%' || $1 || '%'
+    AND set_code = $2
+    AND lang = $3
+`
+
+type GetOneUniqueCardTheListParams struct {
+	Column1 sql.NullString
+	SetCode string
+	Lang    string
+}
+
+func (q *Queries) GetOneUniqueCardTheList(ctx context.Context, arg GetOneUniqueCardTheListParams) (uuid.UUID, error) {
+	row := q.db.QueryRowContext(ctx, getOneUniqueCardTheList, arg.Column1, arg.SetCode, arg.Lang)
 	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err

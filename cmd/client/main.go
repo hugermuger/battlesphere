@@ -96,12 +96,20 @@ type model struct {
 	search         searchMenu
 	login          loginMenu
 	listStyles     listStyle
-	fp             filepickerModel
+	filepicker     filepickerModel
 }
 
 type filepickerModel struct {
-	model        filepicker.Model
-	selectedFile string
+	model                filepicker.Model
+	selectedFile         string
+	focusIndex           int
+	collectionFilepicker bool
+	collectionImport     bool
+	err                  string
+	status               string
+	cue                  string
+	progress             int
+	missing              [][]string
 }
 
 type listStyle struct {
@@ -283,11 +291,16 @@ func initModel() model {
 			selectedDelegate:   selectedDelegate,
 			unselectedDelegate: unselectedDelegate,
 		},
+		filepicker: filepickerModel{
+			focusIndex:           0,
+			collectionFilepicker: false,
+			collectionImport:     false,
+		},
 	}
 }
 
 func (m model) Init() tea.Cmd {
-	return tea.Batch(textinput.Blink, m.fp.model.Init())
+	return tea.Batch(textinput.Blink, m.filepicker.model.Init())
 }
 
 func main() {
@@ -301,7 +314,7 @@ func main() {
 		fp.CurrentDirectory = home
 	}
 	m := initModel()
-	m.fp.model = fp
+	m.filepicker.model = fp
 
 	config, err := loadUserConfig()
 	if err == nil && config.LastToken != "" {
